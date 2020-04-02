@@ -1,0 +1,12 @@
+.background-image-svg( @svg, @fallback ) {
+	background-image: url( @fallback );
+	background-image: linear-gradient( transparent, transparent ), e( '/* @embed */' ) url( @svg );
+}
+
+@media screen {
+    @media ( max-width: 850px ) {
+        #ca-custom-url a {
+            .background-image-svg('./images/custom-url.svg', './images/custom-url.png');
+        }
+    }
+}

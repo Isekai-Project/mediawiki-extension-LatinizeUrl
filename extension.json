@@ -1,0 +1,72 @@
+{
+  "name": "LatinizeUrl",
+  "author": "hyperzlib",
+  "url": "https://www.isekai.cn",
+  "descriptionmsg": "latinizeurl_desc",
+  "version": "1.0.0",
+  "license-name": "MIT",
+  "type": "other",
+  "ExtensionMessagesFiles": {
+    "LatinizeUrlAlias": "LatinizeUrl.alias.php"
+  },
+  "MessagesDirs": {
+    "LatinizeUrl": [
+      "i18n"
+    ]
+  },
+  "AutoloadClasses": {
+    "LatinizeUrl\\Hooks": "includes/Hooks.php",
+    "LatinizeUrl\\Hanzi2Pinyin": "includes/Hanzi2Pinyin.php",
+    "LatinizeUrl\\Utils": "includes/Utils.php",
+    "LatinizeUrl\\Patcher": "includes/Patcher.php",
+    "LatinizeUrl\\SpecialCustomUrl": "specials/SpecialCustomUrl.php"
+  },
+  "Hooks": {
+    "LoadExtensionSchemaUpdates": [
+      "LatinizeUrl\\Hooks::onLoadExtensionSchemaUpdates"
+    ],
+    "SkinTemplateOutputPageBeforeExec": [
+      "LatinizeUrl\\Hooks::onSkinTemplateOutputPageBeforeExec"
+    ],
+    "BeforePageDisplay": [
+      "LatinizeUrl\\Hooks::onBeforePageDisplay"
+    ],
+    "InitializeParseTitle": [
+      "LatinizeUrl\\Hooks::onInitializeParseTitle"
+    ],
+    "ArticleDeleteComplete": [
+      "LatinizeUrl\\Hooks::onArticleDeleteComplete"
+    ],
+    "PageContentInsertComplete": [
+      "LatinizeUrl\\Hooks::onPageContentInsertComplete"
+    ],
+    "TitleMoveComplete": [
+      "LatinizeUrl\\Hooks::onTitleMoveComplete"
+    ],
+    "GetLocalURL": [
+      "LatinizeUrl\\Hooks::onGetArticleUrl"
+    ],
+    "ApiBeforeMain": [
+      "LatinizeUrl\\Hooks::onApiBeforeMain"
+    ]
+  },
+  "SpecialPages": {
+    "CustomUrl": "LatinizeUrl\\SpecialCustomUrl"
+  },
+  "ResourceModules": {
+    "ext.latinizeurl.timeless": {
+      "styles": ["Timeless.less"]
+    }
+  },
+  "ResourceFileModulePaths": {
+    "localBasePath": "modules",
+    "remoteExtPath": "LatinizeUrl"
+  },
+  "config": {
+    "LatinizeUrlConfig": {
+      "parser": "inner"
+    },
+    "LatinizeUrlForceRedirect": true
+  },
+  "manifest_version": 1
+}

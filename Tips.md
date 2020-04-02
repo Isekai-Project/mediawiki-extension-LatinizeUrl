@@ -1,0 +1,4 @@
+- 修改标题的hook：BeforeInitialize
+- 修改内链url的hook：HtmlPageLinkRendererBegin
+- 创建页面的hook：PageContentInsertComplete
+- 移动页面的hook：TitleMoveComplete

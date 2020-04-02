@@ -1,0 +1,14 @@
+{
+    "name": "chs/pinyin-url",
+    "type": "project",
+    "authors": [
+        {
+            "name": "无名写手",
+            "email": "hyperzlib@outlook.com"
+        }
+    ],
+    "require": {
+        "overtrue/pinyin": "~4.0",
+        "fukuball/jieba-php": "^0.33.0"
+    }
+}
