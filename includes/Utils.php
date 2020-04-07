@@ -303,7 +303,7 @@ class Utils {
     }
 
     public static function encodeUriComponent($str){
-        return implode("/", array_map("urlencode", explode("/", $str)));
+        return str_replace('+', '_', implode("/", array_map("urlencode", explode("/", $str))));
     }
 
     public static function getVersion(){

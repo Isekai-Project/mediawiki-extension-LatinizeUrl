@@ -3,7 +3,7 @@
   "author": "hyperzlib",
   "url": "https://github.com/Isekai-Project/mediawiki-extension-LatinizeUrl",
   "descriptionmsg": "latinizeurl_desc",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "license-name": "MIT",
   "type": "other",
   "ExtensionMessagesFiles": {
