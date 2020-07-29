@@ -309,4 +309,30 @@ class Utils {
     public static function getVersion(){
         return ExtensionRegistry::getInstance()->getAllThings()['LatinizeUrl']['version'];
     }
+
+    public static function wordListToUrl($sentenceList){
+        $strBuilder = [];
+        foreach($sentenceList as $pinyinList){
+            if(is_array($pinyinList)){
+                $segStrBuilder = [];
+                foreach($pinyinList as $pinyinGroup){
+                    if(is_array($pinyinGroup)){
+                        $groupStrBuilder = [];
+                        foreach($pinyinGroup as $pinyin){
+                            $groupStrBuilder[] = ucfirst($pinyin);
+                        }
+                        $segStrBuilder[] = implode('', $groupStrBuilder);
+                    } else {
+                        $segStrBuilder[] = $pinyinGroup;
+                    }
+                }
+                $strBuilder[] = implode('-', $segStrBuilder);
+            } else {
+                $strBuilder[] = $pinyinList;
+            }
+        }
+        $str = implode('-', $strBuilder);
+        $str = preg_replace('/-([\x20-\x2f\x3a-\x40\x5b-\x60\x7a-\x7f])-/', '$1', $str);
+        return $str;
+    }
 }

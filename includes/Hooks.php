@@ -77,9 +77,9 @@ class Hooks {
         global $wgLatinizeUrlConfig;
         $titleText = $wikiPage->getTitle()->getText();
         $convertor = new Hanzi2Pinyin($wgLatinizeUrlConfig);
-        $pinyin = $convertor->parse($titleText);
-        $slug = $convertor->pinyin2String($pinyin);
-        Utils::addTitleSlugMap($titleText, $slug, $pinyin);
+        $latinize = $convertor->parse($titleText);
+        $slug = Utils::wordListToUrl($latinize);
+        Utils::addTitleSlugMap($titleText, $slug, $latinize);
     }
 
     public static function onTitleMoveComplete(Title &$title, Title &$newTitle, User $user, $oldid, $newid, $reason, $revision){
@@ -89,9 +89,9 @@ class Hooks {
         global $wgLatinizeUrlConfig;
         $titleText = $newTitle->getText();
         $convertor = new Hanzi2Pinyin($wgLatinizeUrlConfig);
-        $pinyin = $convertor->parse($titleText);
-        $slug = $convertor->pinyin2String($pinyin);
-        Utils::addTitleSlugMap($titleText, $slug, $pinyin);
+        $latinize = $convertor->parse($titleText);
+        $slug = Utils::wordListToUrl($latinize);
+        Utils::addTitleSlugMap($titleText, $slug, $latinize);
     }
 
     public static function onApiBeforeMain(\ApiBase &$processor){
