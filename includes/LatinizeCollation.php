@@ -25,6 +25,10 @@ class LatinizeCollation extends Collation {
     }
 
     public function getSortKey($string){
+        if(defined('MW_UPDATER')){
+            return $string;
+        }
+
         $slug = Utils::getSlugByTitle($string);
         if($slug){
             return ucfirst($slug);
@@ -34,6 +38,10 @@ class LatinizeCollation extends Collation {
     }
 
     public function getFirstLetter($string){
+        if(defined('MW_UPDATER')){
+            return mb_substr(0, 1, $string, 'UTF-8');
+        }
+
         $slug = Utils::getSlugByTitle($string);
         if($slug){
             return strtoupper($slug[0]);

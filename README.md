@@ -52,3 +52,4 @@ http://static-www.isekai.cn:8081/api/toolkit/asciiurl/hanzi2pinyin
 ```php
 $wgCategoryCollation = 'latinize';
 ```
+いい夢見てね
