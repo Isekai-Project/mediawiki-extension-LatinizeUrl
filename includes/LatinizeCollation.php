@@ -14,7 +14,6 @@ class LatinizeCollation extends Collation {
     }
 
     public function getFirstLetter($string){
-        var_dump($string);
         $slug = Utils::getSlugByTitle($string);
         if($slug){
             return strtoupper($slug[0]);
