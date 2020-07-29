@@ -18,12 +18,16 @@
     "LatinizeUrl\\Hooks": "includes/Hooks.php",
     "LatinizeUrl\\Hanzi2Pinyin": "includes/Hanzi2Pinyin.php",
     "LatinizeUrl\\Utils": "includes/Utils.php",
+    "LatinizeUrl\\LatinizeCollation": "includes/LatinizeCollation.php",
     "LatinizeUrl\\Patcher": "includes/Patcher.php",
     "LatinizeUrl\\SpecialCustomUrl": "specials/SpecialCustomUrl.php"
   },
   "Hooks": {
     "LoadExtensionSchemaUpdates": [
       "LatinizeUrl\\Hooks::onLoadExtensionSchemaUpdates"
+    ],
+    "Collation::factory": [
+      "LatinizeUrl\\Hooks::onCollationFactory"
     ],
     "SkinTemplateOutputPageBeforeExec": [
       "LatinizeUrl\\Hooks::onSkinTemplateOutputPageBeforeExec"

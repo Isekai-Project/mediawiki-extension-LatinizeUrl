@@ -37,8 +37,8 @@ class Utils {
             $cond = [
                 'slug' => $slug,
             ];
-            $cond['url'] = ['!', self::$dbr->addQuotes($excludeUrl)];
             
+            $cond['url'] = ['!', self::$dbr->addQuotes($excludeUrl)];
             $res = self::$dbr->selectField('url_slug', 'COUNT(*)', $cond, __METHOD__);
             return intval($res) > 0;
         } else {

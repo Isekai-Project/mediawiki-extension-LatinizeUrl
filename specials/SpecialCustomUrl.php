@@ -99,6 +99,7 @@ class SpecialCustomUrl extends FormSpecialPage
         } else {
             $realSlug = Utils::addTitleSlugMap($this->title->getText(), $slug, [$slug], 1);
         }
+        
         $this->slug = $realSlug;
         return true;
     }

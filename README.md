@@ -44,3 +44,8 @@ https://static-www.isekai.cn:8082/api/toolkit/asciiurl/hanzi2pinyin
 http://static-www.isekai.cn:8081/api/toolkit/asciiurl/hanzi2pinyin
 ```
 不保证稳定性，建议自建daemon
+
+### 使用首字母排列分类中的标题
+```php
+$wgCategoryCollation = 'latinize';
+```

@@ -38,21 +38,23 @@ class Hooks {
     public static function onInitializeParseTitle(Title &$title, $request){
         global $wgLatinizeUrlForceRedirect;
 
-        $realTitle = Utils::getTitleBySlugUrl($title);
-        if($realTitle){
-            $title = $realTitle;
-            $request->setVal('title', $title->getDBkey());
-        } elseif($wgLatinizeUrlForceRedirect
-            && !($request->getVal('action') && $request->getVal('action') != 'view')
-            && in_array($title->getNamespace(), self::$allowedNS)) { //把原标题页面重定向到拼音页面
-            $slug = Utils::getSlugUrlByTitle($title);
-            if($slug) $title = Title::newFromText($slug, $title->getNamespace());
+        if(in_array($title->getNamespace(), self::$allowedNS)){
+            $realTitle = Utils::getTitleBySlugUrl($title);
+            if($realTitle){
+                $title = $realTitle;
+                $request->setVal('title', $title->getDBkey());
+            } elseif($wgLatinizeUrlForceRedirect
+                && !($request->getVal('action') && $request->getVal('action') != 'view')
+                && in_array($title->getNamespace(), self::$allowedNS)) { //把原标题页面重定向到拼音页面
+                $slug = Utils::getSlugUrlByTitle($title);
+                if($slug) $title = Title::newFromText($slug, $title->getNamespace());
+            }
         }
     }
 
     public static function onGetArticleUrl(\Title &$title, &$url, $query){
         try {
-            if(Utils::titleSlugExists($title)){
+            if(in_array($title->getNamespace(), self::$allowedNS) && Utils::titleSlugExists($title)){
                 $slug = Utils::encodeUriComponent(Utils::getSlugUrlByTitle($title));
                 $titleEncoded = Utils::encodeUriComponent($title->getText());
                 $url = str_replace($titleEncoded, $slug, $url);
@@ -126,5 +128,12 @@ class Hooks {
         if($out->getSkin()->getSkinName() == 'timeless'){
             $out->addModules('ext.latinizeurl.timeless');
         }
+    }
+
+    public static function onCollationFactory($collationName, &$collationObject){
+        if($collationName == 'latinize'){
+            $collationObject = new LatinizeCollation();
+        }
+        return true;
     }
 }
