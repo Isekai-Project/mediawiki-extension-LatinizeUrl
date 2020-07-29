@@ -5,6 +5,8 @@ use Exception;
 use ExtensionRegistry;
 use Title;
 use User;
+use Hooks as MWHooks;
+use Language;
 use MediaWiki\MediaWikiServices;
 
 class Utils {
@@ -304,6 +306,29 @@ class Utils {
 
     public static function encodeUriComponent($str){
         return str_replace('+', '_', implode("/", array_map("urlencode", explode("/", $str))));
+    }
+
+    /**
+     * @param Language|string $language - 语言
+     * @return BaseConvertor 转换器
+     */
+    public static function getConvertor($language = null){
+        if($language == null){
+            $language = MediaWikiServices::getInstance()->getContentLanguage();
+        }
+
+        if($language instanceof Language){
+            $language = $language->getCode();
+        }
+
+        $convertor = null;
+
+        MWHooks::run('LatinizeUrlGetConvertor', [
+            $language,
+            &$convertor,
+        ]);
+
+        return $convertor;
     }
 
     public static function getVersion(){

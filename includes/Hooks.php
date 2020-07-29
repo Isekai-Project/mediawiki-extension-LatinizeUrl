@@ -74,9 +74,9 @@ class Hooks {
         if(!in_array($wikiPage->getTitle()->getNamespace(), self::$allowedNS)){ //不是普通页面就跳过
             return;
         }
-        global $wgLatinizeUrlConfig;
+
         $titleText = $wikiPage->getTitle()->getText();
-        $convertor = new Hanzi2Pinyin($wgLatinizeUrlConfig);
+        $convertor = Utils::getConvertor($wikiPage->getTitle()->getPageLanguage());
         $latinize = $convertor->parse($titleText);
         $slug = Utils::wordListToUrl($latinize);
         Utils::addTitleSlugMap($titleText, $slug, $latinize);
@@ -86,9 +86,9 @@ class Hooks {
         if(!in_array($newTitle->getNamespace(), self::$allowedNS)){ //不是普通页面就跳过
             return;
         }
-        global $wgLatinizeUrlConfig;
+        
         $titleText = $newTitle->getText();
-        $convertor = new Hanzi2Pinyin($wgLatinizeUrlConfig);
+        $convertor = Utils::getConvertor($newTitle->getPageLanguage());
         $latinize = $convertor->parse($titleText);
         $slug = Utils::wordListToUrl($latinize);
         Utils::addTitleSlugMap($titleText, $slug, $latinize);

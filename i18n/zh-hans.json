@@ -1,9 +1,9 @@
 {
-    "latinizeurl_desc": "把url中的汉字转换成拼音。",
+    "latinizeurl-desc": "把url中的汉字转换成拼音。",
     "latinizeurl-customurl": "自定义URL",
     "customurl-legend": "自定义URL",
     "customurl-url-field-label": "你想要设置的URL：",
     "customurl-url-field-help": "建议使用纯英语字符，留空时会自动根据标题里的汉字生成对应的拼音URL。",
-    "customurl-set-success": "页面的URL已经设置为[[$1|$2]]",
+    "customurl-set-success": "页面的URL已经设置为：[[$1|$2]]。",
     "customurl-set-failed": "页面URL不可用。"
 }

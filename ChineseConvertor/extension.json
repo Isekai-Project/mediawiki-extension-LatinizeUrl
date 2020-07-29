@@ -1,0 +1,28 @@
+{
+  "name": "ChineseConvertor",
+  "author": "hyperzlib",
+  "url": "https://github.com/Isekai-Project/mediawiki-extension-LatinizeUrl",
+  "descriptionmsg": "latinizeurl-chinese-convertor-desc",
+  "version": "1.0.1",
+  "license-name": "MIT",
+  "type": "other",
+  "MessagesDirs": {
+    "ChineseConvertor": [
+      "i18n"
+    ]
+  },
+  "AutoloadClasses": {
+    "LatinizeUrl\\ChineseConvertor": "ChineseConvertor.php"
+  },
+  "Hooks": {
+    "LatinizeUrlGetConvertor": [
+      "LatinizeUrl\\ChineseConvertor::onGetConvertor"
+    ]
+  },
+  "config": {
+    "LatinizeUrlChineseConvertorConfig": {
+      "parser": "inner"
+    }
+  },
+  "manifest_version": 1
+}

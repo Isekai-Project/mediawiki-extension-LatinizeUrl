@@ -1,0 +1,28 @@
+{
+  "name": "JapaneseConvertor",
+  "author": "hyperzlib",
+  "url": "https://github.com/Isekai-Project/mediawiki-extension-LatinizeUrl",
+  "descriptionmsg": "latinizeurl-japanese-convertor-desc",
+  "version": "1.0.1",
+  "license-name": "MIT",
+  "type": "other",
+  "MessagesDirs": {
+    "JapaneseConvertor": [
+      "i18n"
+    ]
+  },
+  "AutoloadClasses": {
+    "LatinizeUrl\\JapaneseConvertor": "JapaneseConvertor.php"
+  },
+  "Hooks": {
+    "LatinizeUrlGetConvertor": [
+      "LatinizeUrl\\JapaneseConvertor::onGetConvertor"
+    ]
+  },
+  "config": {
+    "LatinizeUrlJapaneseonvertorConfig": {
+      "parser": "remote"
+    }
+  },
+  "manifest_version": 1
+}

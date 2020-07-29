@@ -83,11 +83,10 @@ class SpecialCustomUrl extends FormSpecialPage
     }
     
     public function onSubmit(array $data, \HTMLForm $form = null ) {
-        global $wgLatinizeUrlConfig;
         $slug = $data['slug'];
         if(empty($slug)){ //自动生成
             $titleText = $this->title->getText();
-            $convertor = new Hanzi2Pinyin($wgLatinizeUrlConfig);
+            $convertor = Utils::getConvertor($this->title->getPageLanguage());
             $latinize = $convertor->parse($titleText);
             $slug = Utils::wordListToUrl($latinize);
         } else {

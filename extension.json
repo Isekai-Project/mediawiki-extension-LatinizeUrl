@@ -2,7 +2,7 @@
   "name": "LatinizeUrl",
   "author": "hyperzlib",
   "url": "https://github.com/Isekai-Project/mediawiki-extension-LatinizeUrl",
-  "descriptionmsg": "latinizeurl_desc",
+  "descriptionmsg": "latinizeurl-desc",
   "version": "1.0.1",
   "license-name": "MIT",
   "type": "other",
@@ -16,7 +16,7 @@
   },
   "AutoloadClasses": {
     "LatinizeUrl\\Hooks": "includes/Hooks.php",
-    "LatinizeUrl\\Hanzi2Pinyin": "includes/Hanzi2Pinyin.php",
+    "LatinizeUrl\\BaseConvertor": "includes/BaseConvertor.php",
     "LatinizeUrl\\Utils": "includes/Utils.php",
     "LatinizeUrl\\LatinizeCollation": "includes/LatinizeCollation.php",
     "LatinizeUrl\\Patcher": "includes/Patcher.php",
@@ -67,9 +67,6 @@
     "remoteExtPath": "LatinizeUrl"
   },
   "config": {
-    "LatinizeUrlConfig": {
-      "parser": "inner"
-    },
     "LatinizeUrlForceRedirect": true
   },
   "manifest_version": 1

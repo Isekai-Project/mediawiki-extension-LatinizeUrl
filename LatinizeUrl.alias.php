@@ -12,3 +12,7 @@ $specialPageAliases['zh-hans'] = [
 $specialPageAliases['zh-hant'] = [
     'CustomUrl' => '客制化URL'
 ];
+
+$specialPageAliases['ja'] = [
+    'CustomUrl' => 'URLを編集'
+];

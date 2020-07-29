@@ -4,6 +4,7 @@
 添加
 ```php
 wfLoadExtension('LatinizeUrl');
+wfLoadExtension('LatinizeUrl/ChineseConvertor');
 ```
 到LocalSettings.php
 执行maintenance/update.php或者网页版更新器
@@ -19,24 +20,26 @@ Hooks::run( 'InitializeParseTitle', [ &$ret, $request ] );
 ## 配置
 ### 使用PHP内置的解析器（较慢）
 ```php
-$wgLatinizeUrlConfig['parser'] = 'inner';
+$LatinizeUrlChineseConvertorConfig['parser'] = 'inner';
 ```
 开启分词功能
 ```php
-$wgLatinizeUrlConfig['cutWord'] = true;
+$LatinizeUrlChineseConvertorConfig['cutWord'] = true;
 ```
 开启分词后会很慢，建议使用daemon解析
 
 ### 使用daemon api解析
 项目地址：[Isekai-LatinizeUrl-Backend](https://github.com/Isekai-Project/Isekai-LatinizeUrl-Backend)
 ```php
-$wgLatinizeUrlConfig['parser'] = 'api';
-$wgLatinizeUrlConfig['url'] = '指向daemon的url，默认的path是网址:端口/asciiurl/hanzi2pinyin';
-$wgLatinizeUrlConfig['fallback'] = false;
+$LatinizeUrlChineseConvertorConfig['parser'] = 'api';
+$LatinizeUrlChineseConvertorConfig['url'] = '指向daemon的url，默认的path是网址:端口/asciiurl/hanzi2pinyin';
+$LatinizeUrlChineseConvertorConfig['fallback'] = false;
+//日语转换
+$LatinizeUrlJapaneseConvertorConfig['url'] = '指向daemon的url，默认的path是网址:端口/asciiurl/kanji2romaji';
 ```
 也可以配置在daemon离线时自动退回php解析
 ```php
-$wgLatinizeUrlConfig['fallback'] = 'inner';
+$LatinizeUrlChineseConvertorConfig['fallback'] = 'inner';
 ```
 另：虚拟主机可以使用异世界百科的开放api
 ```

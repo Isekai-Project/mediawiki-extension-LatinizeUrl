@@ -12,13 +12,11 @@ class LatinizeCollation extends Collation {
     }
 
     private function getLatinize($string){
-        global $wgLatinizeUrlConfig;
-
         return $this->cache->getWithSetCallback(
             $this->cache->makeKey('latinizeConvert', $string),
             $this->cache::TTL_MINUTE * 10,
-            function() use($string, $wgLatinizeUrlConfig){
-                $convertor = new Hanzi2Pinyin($wgLatinizeUrlConfig);
+            function() use($string){
+                $convertor = Utils::getConvertor();
                 $latinize = $convertor->parse($string);
                 $slug = Utils::wordListToUrl($latinize);
                 return $slug;

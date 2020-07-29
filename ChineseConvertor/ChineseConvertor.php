@@ -9,20 +9,35 @@ use Fukuball\Jieba\Finalseg;
 use Fukuball\Jieba\Posseg;
 use Overtrue\Pinyin\Pinyin;
 
-class Hanzi2Pinyin {
+class ChineseConvertor extends BaseConvertor {
     private $config;
+    private static $standalone = null;
     private static $libLoaded = false;
     private static $jiebaLoaded = false;
     private static $pinyinParser = null;
+
+    public static function standalone(){
+        if(!self::$standalone){
+            global $wgLatinizeUrlChineseConvertorConfig;
+            self::$standalone = new self($wgLatinizeUrlChineseConvertorConfig);
+        }
+        return self::$standalone;
+    }
+
+    public static function onGetConvertor($langCode, &$convertor){
+        if(in_array($langCode, ['zh-cn', 'zh-hans'])){
+            $convertor = self::standalone();
+        }
+        return true;
+    }
 
     public function __construct($config){
         $this->config = $config;
     }
 
-    public function parse($hanzi, $method = false){
-        if(!$method){
-            $method = $this->config['parser'] . 'Parse';
-        }
+    public function parse($hanzi){
+        $method = $this->config['parser'] . 'Parse';
+            
         if(is_callable([$this, $method])){
             return call_user_func([$this, $method], $hanzi);
         } else {
