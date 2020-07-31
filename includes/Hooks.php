@@ -39,10 +39,10 @@ class Hooks {
         global $wgLatinizeUrlForceRedirect;
 
         if(in_array($title->getNamespace(), self::$allowedNS)){
-            $realTitle = Utils::getTitleBySlugUrl($title);
+            $realTitle = Utils::getTitleBySlugUrl($title, $title->getNamespace());
             if($realTitle){
                 $title = $realTitle;
-                $request->setVal('title', $title->getDBkey());
+                $request->setVal('title', $title->getPrefixedDBkey());
             } elseif($wgLatinizeUrlForceRedirect
                 && !($request->getVal('action') && $request->getVal('action') != 'view')
                 && in_array($title->getNamespace(), self::$allowedNS)) { //把原标题页面重定向到拼音页面
@@ -55,9 +55,10 @@ class Hooks {
     public static function onGetArticleUrl(\Title &$title, &$url, $query){
         try {
             if(in_array($title->getNamespace(), self::$allowedNS) && Utils::titleSlugExists($title)){
-                $slug = Utils::encodeUriComponent(Utils::getSlugUrlByTitle($title));
-                $titleEncoded = Utils::encodeUriComponent($title->getText());
-                $url = str_replace($titleEncoded, $slug, $url);
+                $slug = Title::newFromText(Utils::getSlugUrlByTitle($title), $title->getNamespace());
+                $slugEncoded = Utils::encodeUriComponent($slug->getPrefixedText());
+                $titleEncoded = Utils::encodeUriComponent($title->getPrefixedText());
+                $url = str_replace($titleEncoded, $slugEncoded, $url);
             }
         } catch(DBQueryError $ex){
             
@@ -100,9 +101,10 @@ class Hooks {
         if($titles){
             $titles = explode('|', $titles);
             foreach($titles as $id => $title){
-                $realTitle = Utils::getTitleBySlugUrl($title);
+                $title = Title::newFromText($title);
+                $realTitle = Utils::getTitleBySlugUrl($title, $title->getNamespace());
                 if($realTitle){
-                    $titles[$id] = $realTitle->getText();
+                    $titles[$id] = $realTitle->getPrefixedText();
                 }
             }
             $request->setVal('titles', implode('|', $titles));
