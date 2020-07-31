@@ -65,7 +65,7 @@ class Hooks {
         }
     }
 
-    public static function onArticleDeleteComplete(Article &$article, User &$user, $reason, $id, \Content $content = null, \LogEntry $logEntry){
+    public static function onArticleDeleteComplete(&$article, User &$user, $reason, $id, \Content $content = null, \LogEntry $logEntry){
         if(in_array($article->getTitle()->getNamespace(), self::$allowedNS)){
             Utils::removeTitleSlugMap($article->getTitle()->getText());
         }
