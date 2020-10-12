@@ -29,7 +29,7 @@ class Patcher {
 
     public function patchInitializeParseTitleHook(){
         $patchName = 'InitializeParseTitleHook';
-        $patchContent = ['Hooks::run( \'InitializeParseTitle\', [ &$ret, $request ] );'];
+        $patchContent = ['MediaWikiServices::getInstance()->getHookContainer()->run( \'InitializeParseTitle\', [ &$ret, $request ] );'];
         $patchFinalContent = $this->makePatchContent($patchName, $patchContent, 2);
         $currentPatch = $this->findPatchVersion($patchName);
         if($currentPatch){

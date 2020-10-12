@@ -7,6 +7,7 @@ use MediaWiki\Http\HttpRequestFactory;
 use Fukuball\Jieba\Jieba;
 use Fukuball\Jieba\Finalseg;
 use Fukuball\Jieba\Posseg;
+use MediaWiki\MediaWikiServices;
 use Overtrue\Pinyin\Pinyin;
 
 class ChineseConvertor extends BaseConvertor {
@@ -120,7 +121,7 @@ class ChineseConvertor extends BaseConvertor {
      */
     public function hookParse($hanzi){
         $pinyinList = null;
-        \Hooks::run('Pinyin2Hanzi', [$hanzi, &$pinyinList]);
+        MediaWikiServices::getInstance()->getHookContainer()->run('Pinyin2Hanzi', [$hanzi, &$pinyinList]);
         if(!$pinyinList){
             if(isset($this->config['fallback'])){
                 return $this->parse($hanzi, $this->config['fallback']);
@@ -142,7 +143,7 @@ class ChineseConvertor extends BaseConvertor {
         if(!isset($this->config['url'])){
             throw new Exception('LatinizeUrl remote api url not set.');
         }
-        $factory = new HttpRequestFactory();
+        $factory = MediaWikiServices::getInstance()->getHttpRequestFactory();
         $req = $factory->create($this->config['url'], [
             'method' => 'POST',
             'postData' => [

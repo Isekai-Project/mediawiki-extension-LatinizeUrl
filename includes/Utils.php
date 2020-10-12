@@ -325,7 +325,7 @@ class Utils {
 
         $convertor = null;
 
-        MWHooks::run('LatinizeUrlGetConvertor', [
+        MediaWikiServices::getInstance()->getHookContainer()->run('LatinizeUrlGetConvertor', [
             $language,
             &$convertor,
         ]);

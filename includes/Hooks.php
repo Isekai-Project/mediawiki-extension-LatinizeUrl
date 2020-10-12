@@ -7,6 +7,7 @@ use OutputPage;
 use User;
 use MediaWiki\Linker\LinkRenderer;
 use MediaWiki\Linker\LinkTarget;
+use MediaWiki\MediaWikiServices;
 use Wikimedia\Rdbms\DBQueryError;
 
 class Hooks {
@@ -112,10 +113,12 @@ class Hooks {
     }
 
     public static function onSkinTemplateOutputPageBeforeExec(\Skin $skin, \QuickTemplate $template){
-        global $wgUser;
+        $service = MediaWikiServices::getInstance();
+        $user = $skin->getContext()->getUser();
+        
         $title = $skin->getRelevantTitle();
         if(in_array($title->getNamespace(), self::$allowedNS)){
-            if($wgUser->isAllowed('delete') || Utils::hasUserEditedPage($title, $wgUser)){
+            if($service->getPermissionManager()->userHasRight($user, 'delete') || Utils::hasUserEditedPage($title, $user)){
                 $template->data['content_navigation']['page-secondary']['custom-url'] = [
                     'class' => false,
                     'text' => wfMessage('latinizeurl-customurl')->text(),

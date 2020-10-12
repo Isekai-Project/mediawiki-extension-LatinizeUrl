@@ -2,6 +2,7 @@
 namespace LatinizeUrl;
 
 use FormSpecialPage;
+use MediaWiki\MediaWikiServices;
 
 class SpecialCustomUrl extends FormSpecialPage
 {
@@ -30,6 +31,7 @@ class SpecialCustomUrl extends FormSpecialPage
     }
 
     protected function setParameter( $par ) {
+        $service = MediaWikiServices::getInstance();
 		$title = \Title::newFromText( $par );
 		$this->title = $title;
 
@@ -40,7 +42,8 @@ class SpecialCustomUrl extends FormSpecialPage
 			throw new \ErrorPageError( 'nopagetitle', 'nopagetext' );
         }
         
-        $isAdmin = $this->getUser()->isAllowed('delete');
+        
+        $isAdmin = $service->getPermissionManager()->userHasRight($this->getUser(), 'delete');
         $this->isAdmin = $isAdmin;
         $userEditedPage = Utils::hasUserEditedPage($this->title, $this->getUser());
         $this->userEditedPage = $userEditedPage;

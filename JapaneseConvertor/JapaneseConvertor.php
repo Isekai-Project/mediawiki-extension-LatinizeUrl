@@ -4,6 +4,7 @@ namespace LatinizeUrl;
 
 use Exception;
 use MediaWiki\Http\HttpRequestFactory;
+use MediaWiki\MediaWikiServices;
 
 class JapaneseConvertor extends BaseConvertor {
     private $config;
@@ -32,7 +33,7 @@ class JapaneseConvertor extends BaseConvertor {
         if(!isset($this->config['url'])){
             throw new Exception('LatinizeUrl remote api url not set.');
         }
-        $factory = new HttpRequestFactory();
+        $factory = MediaWikiServices::getInstance()->getHttpRequestFactory();
         $req = $factory->create($this->config['url'], [
             'method' => 'POST',
             'postData' => [

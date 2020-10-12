@@ -3,6 +3,7 @@ require_once dirname(__DIR__, 3) . '/maintenance/Maintenance.php';
 require_once dirname(__DIR__) . '/includes/Hanzi2Pinyin.php';
 require_once dirname(__DIR__) . '/includes/Utils.php';
 
+use LatinizeUrl\ChineseConvertor;
 use LatinizeUrl\Hanzi2Pinyin;
 use LatinizeUrl\Utils;
 
@@ -39,7 +40,7 @@ class UpdateLatinizeUrl extends Maintenance {
 			$this->fatalError( "This change is only needed on MySQL, quitting.\n" );
 		}
         
-		$convertor = new Hanzi2Pinyin($wgLatinizeUrlConfig);
+		$convertor = new ChineseConvertor($wgLatinizeUrlConfig);
 
 		$res = $this->findRows( $dbw );
 		foreach($res as $one){
@@ -48,7 +49,7 @@ class UpdateLatinizeUrl extends Maintenance {
             if(!$force && !$isCustom && Utils::titleSlugExists($title)) continue;
 
             $pinyin = $convertor->parse($title);
-            $slug = $convertor->pinyin2String($pinyin);
+            $slug = $convertor->parse($pinyin);
 			echo $title . ' -> ' . $slug . PHP_EOL;
 			if($outputFile){
 				$pair = [$this->getFullUrl($title), $this->getFullUrl($slug)];
