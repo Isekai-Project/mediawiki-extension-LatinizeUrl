@@ -1,11 +1,11 @@
 <?php
 namespace LatinizeUrl;
 
+use Article;
 use Exception;
 use ExtensionRegistry;
 use Title;
 use User;
-use Hooks as MWHooks;
 use Language;
 use MediaWiki\MediaWikiServices;
 
@@ -294,14 +294,15 @@ class Utils {
     }
 
     public static function hasUserEditedPage(Title $title, User $user){
-        self::initReplicaDb();
-        if(!$user->getId()) return false;
-        $matchRecords = self::$dbr->selectField('revision', 'COUNT(*)', [
-            'rev_page' => $title->getArticleID(),
-            'rev_user' => $user->getId(),
-        ], __METHOD__);
-        $matchRecords = intval($matchRecords);
-        return $matchRecords > 0;
+        if($user->isAnon()) return false;
+        $wikiPage = Article::newFromID($title->getArticleID())->getPage();
+        $contributors = $wikiPage->getContributors();
+        foreach($contributors as $contributor){
+            if($contributor->equals($user)){
+                return true;
+            }
+        }
+        return false;
     }
 
     public static function encodeUriComponent($str){
@@ -311,7 +312,7 @@ class Utils {
     }
 
     /**
-     * @param Language|string $language - 语言
+     * @param Language|string|null $language - 语言
      * @return BaseConvertor 转换器
      */
     public static function getConvertor($language = null){

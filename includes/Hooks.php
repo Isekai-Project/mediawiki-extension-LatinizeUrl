@@ -53,6 +53,11 @@ class Hooks {
         }
     }
 
+    /**
+     * @param Title $title
+     * @param $url
+     * @param $query
+     */
     public static function onGetArticleUrl(\Title &$title, &$url, $query){
         try {
             if(in_array($title->getNamespace(), self::$allowedNS) && Utils::titleSlugExists($title)){
