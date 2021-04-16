@@ -4,6 +4,7 @@
     "customurl-legend": "Custom URL",
     "customurl-url-field-label": "The URL you want to use:",
     "customurl-url-field-help": "Recommand using ASCII chars. If empty, will convert automatically to ASCII.",
+    "rename-subpage-checkbox-label": "Also change the URL of the subpages",
     "customurl-set-success": "The URL of this page has been set to [[$1|$2]].",
     "customurl-set-failed": "This URL is invalid."
 }

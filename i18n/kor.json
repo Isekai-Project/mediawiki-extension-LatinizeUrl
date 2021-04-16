@@ -4,6 +4,7 @@
     "customurl-legend": "URL을 편집",
     "customurl-url-field-label": "사용하고자하는 URL :",
     "customurl-url-field-help": "ASCII 문자를 권장합니다. 입력하지 않으면, 한자에 대응하는 로마자 자동으로 생성됩니다.",
+    "rename-subpage-checkbox-label": "하위 문서의 URL을 함께 변경",
     "customurl-set-success": "이 페이지의 새로운 URL은 [[$1|$2]].",
     "customurl-set-failed": "이 URL이 잘못되었습니다."
 }

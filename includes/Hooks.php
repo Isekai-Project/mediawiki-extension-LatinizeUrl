@@ -53,11 +53,6 @@ class Hooks {
         }
     }
 
-    /**
-     * @param Title $title
-     * @param $url
-     * @param $query
-     */
     public static function onGetArticleUrl(\Title &$title, &$url, $query){
         try {
             if(in_array($title->getNamespace(), self::$allowedNS) && Utils::titleSlugExists($title)){
@@ -81,12 +76,14 @@ class Hooks {
         if(!in_array($wikiPage->getTitle()->getNamespace(), self::$allowedNS)){ //不是普通页面就跳过
             return;
         }
+        
+        try {
+            $title = $wikiPage->getTitle();
+            $parsedData = Utils::parseTitleToAscii($title, $title->getPageLanguage());
+            Utils::addTitleSlugMap($title->getText(), $parsedData['slug'], $parsedData['latinize']);
+        } catch (\Exception $e) {
 
-        $titleText = $wikiPage->getTitle()->getText();
-        $convertor = Utils::getConvertor($wikiPage->getTitle()->getPageLanguage());
-        $latinize = $convertor->parse($titleText);
-        $slug = Utils::wordListToUrl($latinize);
-        Utils::addTitleSlugMap($titleText, $slug, $latinize);
+        }
     }
 
     public static function onTitleMoveComplete(Title &$title, Title &$newTitle, User $user, $oldid, $newid, $reason, $revision){
@@ -94,11 +91,12 @@ class Hooks {
             return;
         }
         
-        $titleText = $newTitle->getText();
-        $convertor = Utils::getConvertor($newTitle->getPageLanguage());
-        $latinize = $convertor->parse($titleText);
-        $slug = Utils::wordListToUrl($latinize);
-        Utils::addTitleSlugMap($titleText, $slug, $latinize);
+        try {
+            $parsedData = Utils::parseTitleToAscii($newTitle, $newTitle->getPageLanguage());
+            Utils::addTitleSlugMap($newTitle->getText(), $parsedData['slug'], $parsedData['latinize']);
+        } catch (\Exception $e) {
+
+        }
     }
 
     public static function onApiBeforeMain(\ApiBase &$processor){

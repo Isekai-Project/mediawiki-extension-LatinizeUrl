@@ -4,6 +4,7 @@
     "customurl-legend": "URLを編集",
     "customurl-url-field-label": "使用したいURL：",
     "customurl-url-field-help": "ASCII文字をお勧めします。入力しない場合は、漢字に対応するローマ字が自動的に生成されます。",
+    "rename-subpage-checkbox-label": "下位ページのURLを一緒に変更する",
     "customurl-set-success": "このページの新しいURLは [[$1|$2]].",
     "customurl-set-failed": "このURLは無効です。"
 }

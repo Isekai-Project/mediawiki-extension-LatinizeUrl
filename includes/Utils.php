@@ -184,6 +184,27 @@ class Utils {
         );
     }
 
+    public static function getSlugDataByTitle($title){
+        if($title instanceof Title){
+            $title = $title->getText();
+        }
+
+        self::initCache();
+        self::initReplicaDb();
+        
+        $res = self::$dbr->select('url_slug', '*', [
+            'title' => $title,
+        ], __METHOD__, [
+            'LIMIT' => 1,
+        ]);
+        if($res->numRows() > 0){
+            $data = $res->fetchRow();
+            return $data;
+        } else {
+            return false;
+        }
+    }
+
     public static function addTitleSlugMap($title, $slug, $latinize = [], $custom = 0){
         if(self::titleSlugExists($title)){
             throw new Exception("Title slug map already exists: " . $title);
@@ -295,10 +316,13 @@ class Utils {
 
     public static function hasUserEditedPage(Title $title, User $user){
         if($user->isAnon()) return false;
+        if(!$title->exists()) return false;
+        $article = Article::newFromID($title->getArticleID());
+        if($article == null) return false;
         $wikiPage = Article::newFromID($title->getArticleID())->getPage();
         $contributors = $wikiPage->getContributors();
-        foreach($contributors as $contributor){
-            if($contributor->equals($user)){
+        foreach ($contributors as $contributor) {
+            if ($contributor->equals($user)) {
                 return true;
             }
         }
@@ -332,6 +356,59 @@ class Utils {
         ]);
 
         return $convertor;
+    }
+
+    /**
+     * @param Title $title - 要转换的标题
+     * @param Language|string|null $language - 语言
+     * @return mixed 转换器
+     */
+    public static function parseTitleToAscii(Title $title, Language $language){
+        $convertor = self::getConvertor($language);
+        if($title->isSubpage()){
+            //处理子页面，按照页面拆分
+            $titlePathList = explode('/', $title->getText());
+			$titlePathLen = count($titlePathList);
+            $unparsed = $title->getText();
+            $baseSlug = false;
+            for($i = $titlePathLen - 2; $i >= 0; $i --){
+                $titleSubPath = implode('/', array_slice($titlePathList, 0, $i + 1));
+                $baseTitle = Title::newFromText($titleSubPath, $title->getNamespace());
+                $baseSlug = self::getSlugUrlByTitle($baseTitle);
+                if($baseSlug){
+                    $unparsed = implode('/', array_slice($titlePathList, $i + 1));
+                    break;
+                }
+            }
+            $parsed = $convertor->parse($unparsed);
+            if($parsed){
+                $parsedSlug = self::wordListToUrl($parsed);
+                if($baseSlug){
+                    return [
+                        'slug' => $baseSlug . '/' . $parsedSlug,
+                        'latinize' => array_merge([$baseSlug, '/'], $parsed),
+                    ];
+                } else {
+                    return [
+                        'slug' => $parsedSlug,
+                        'latinize' => $parsed,
+                    ];
+                }
+            } else {
+                return false;
+            }
+        } else {
+            $parsed = $convertor->parse($title->getText());
+            if($parsed){
+                $parsedSlug = self::wordListToUrl($parsed);
+                return [
+                    'slug' => $parsedSlug,
+                    'latinize' => $parsed,
+                ];
+            } else {
+                return false;
+            }
+        }
     }
 
     public static function getVersion(){

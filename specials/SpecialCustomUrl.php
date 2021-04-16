@@ -3,9 +3,13 @@ namespace LatinizeUrl;
 
 use FormSpecialPage;
 use MediaWiki\MediaWikiServices;
+use phpDocumentor\Reflection\DocBlock\Tags\Var_;
 
 class SpecialCustomUrl extends FormSpecialPage
 {
+    /**
+     * @var \Title $title
+     */
     protected $title;
     protected $slug;
     protected $isAdmin;
@@ -82,26 +86,52 @@ class SpecialCustomUrl extends FormSpecialPage
             'default' => $this->getCurrentSlug(),
         ];
 
+        if($this->title->hasSubpages()){
+            $fields['rename-subpage'] = [
+                'type' => 'check',
+                'label-message' => 'rename-subpage-checkbox-label',
+                'default' => false,
+            ];
+        }
+
 		return $fields;
     }
     
     public function onSubmit(array $data, \HTMLForm $form = null ) {
+        $originSlug = Utils::getSlugByTitle($this->title);
         $slug = $data['slug'];
+        $latinize = [];
         if(empty($slug)){ //自动生成
-            $titleText = $this->title->getText();
-            $convertor = Utils::getConvertor($this->title->getPageLanguage());
-            $latinize = $convertor->parse($titleText);
-            $slug = Utils::wordListToUrl($latinize);
+            $parsedData = Utils::parseTitleToAscii($this->title, $this->title->getPageLanguage());
+            $slug = $parsedData['slug'];
+            $latinize = $parsedData['latinize'];
+            $custom = 0;
         } else {
             $slug = str_replace('_', ' ', $slug);
+            $latinize = [$slug];
+            $custom = 1;
         }
 
         if(Utils::titleSlugExists($this->title)){
-            $realSlug = Utils::updateTitleSlugMap($this->title->getText(), $slug, [], 1);
+            $realSlug = Utils::updateTitleSlugMap($this->title->getText(), $slug, $latinize, $custom);
         } else {
-            $realSlug = Utils::addTitleSlugMap($this->title->getText(), $slug, [$slug], 1);
+            $realSlug = Utils::addTitleSlugMap($this->title->getText(), $slug, $latinize, $custom);
         }
         
+        if(isset($data['rename-subpage']) && $data['rename-subpage']){
+            //更新子页面的slug
+            $subpages = $this->title->getSubpages();
+            $originSlugLen = strlen($originSlug);
+            /** @var \Title $subpage */
+            foreach($subpages as $subpage){
+                $originSubpaeSlug = Utils::getSlugByTitle($subpage);
+                if(strpos($originSubpaeSlug, $originSlug) === 0){
+                    $newSubpageSlug = $realSlug . substr($originSubpaeSlug, $originSlugLen);
+                    var_dump($newSubpageSlug);
+                    Utils::updateTitleSlugMap($subpage->getText(), $newSubpageSlug, [$newSubpageSlug], 1);
+                }
+            }
+        }
         $this->slug = $realSlug;
         return true;
     }
