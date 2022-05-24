@@ -46,6 +46,8 @@ class Hooks {
                 $request->setVal('title', $title->getPrefixedDBkey());
             } elseif($wgLatinizeUrlForceRedirect
                 && !($request->getVal('action') && $request->getVal('action') != 'view')
+                && !$request->getVal('veaction')
+                && !defined('MW_API')
                 && in_array($title->getNamespace(), self::$allowedNS)) { //把原标题页面重定向到拼音页面
                 $slug = Utils::getSlugUrlByTitle($title);
                 if($slug) $title = Title::newFromText($slug, $title->getNamespace());

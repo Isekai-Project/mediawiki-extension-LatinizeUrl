@@ -97,7 +97,7 @@ class Utils {
                 ], __METHOD__, [
                     'LIMIT' => 1,
                 ]);
-                if($res->numRows() > 0){
+                if ($res->numRows() > 0) {
                     $data = $res->fetchRow();
                     return $data['title'];
                 } else {
@@ -300,7 +300,7 @@ class Utils {
                 'title' => $title,
             ], __METHOD__);
 
-            self::$dbr->delete('url_slug', [
+            self::$dbw->delete('url_slug', [
                 'title' => $title,
             ]);
             

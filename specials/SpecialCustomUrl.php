@@ -127,7 +127,6 @@ class SpecialCustomUrl extends FormSpecialPage
                 $originSubpaeSlug = Utils::getSlugByTitle($subpage);
                 if(strpos($originSubpaeSlug, $originSlug) === 0){
                     $newSubpageSlug = $realSlug . substr($originSubpaeSlug, $originSlugLen);
-                    var_dump($newSubpageSlug);
                     Utils::updateTitleSlugMap($subpage->getText(), $newSubpageSlug, [$newSubpageSlug], 1);
                 }
             }
