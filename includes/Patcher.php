@@ -15,7 +15,7 @@ class Patcher {
     }
 
     public function findPatchVersion($name){
-        $regex = '/\/\/ Start ' . $this->tag . ' ([0-9\.\-]+) ' . $name . ' Patch\n.*?\/\/ End ' . $this->tag . ' [0-9\.\-]+ ' . $name . ' Patch/is';
+        $regex = '/\/\/ Start ' . $this->tag . ' ([0-9.\-]+) ' . $name . ' Patch\n.*?\/\/ End ' . $this->tag . ' [0-9.\-]+ ' . $name . ' Patch/is';
         if(preg_match($regex, $this->content, $matches, PREG_OFFSET_CAPTURE)){
             $ret = [];
             $ret['start'] = $matches[0][1];
@@ -32,7 +32,7 @@ class Patcher {
         $patchContent = ['MediaWikiServices::getInstance()->getHookContainer()->run( \'InitializeParseTitle\', [ &$ret, $request ] );'];
         $patchFinalContent = $this->makePatchContent($patchName, $patchContent, 2);
         $currentPatch = $this->findPatchVersion($patchName);
-        if($currentPatch){
+        if ($currentPatch) {
             if($currentPatch['version'] != $this->version){ //需要更新
                 $this->content = substr($this->content, 0, $currentPatch['start'] - 2)
                     . $patchFinalContent
@@ -53,7 +53,7 @@ class Patcher {
         if(!is_array($content)) $content = explode("\n", $content);
         $lines = array_merge([
             '// Start ' . $this->tag . ' ' . $this->version . ' ' . $name . ' Patch',
-            '// This code is added by ' . $this->tag . ', Donnot remove this code untill you uninstall ' . $this->tag . '.',
+            '// This code is added by ' . $this->tag . ' extension, Do not remove this code until you uninstall ' . $this->tag . ' extension.',
         ], $content, [
             '// End ' . $this->tag . ' ' . $this->version . ' ' . $name . ' Patch',
         ]);

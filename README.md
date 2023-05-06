@@ -43,8 +43,7 @@ $LatinizeUrlChineseConvertorConfig['fallback'] = 'inner';
 ```
 另：虚拟主机可以使用异世界百科的开放api
 ```
-https://static-www.isekai.cn:8082/api/toolkit/asciiurl/hanzi2pinyin
-http://static-www.isekai.cn:8081/api/toolkit/asciiurl/hanzi2pinyin
+https://www.isekai.cn/api/toolkit/asciiurl/hanzi2pinyin
 ```
 不保证稳定性，建议自建daemon
 

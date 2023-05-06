@@ -1,5 +1,5 @@
 {
-    "latinizeurl-desc": "把url中的汉字转换成拼音。",
+    "latinizeurl-desc": "将URL中的汉字转换成拼音。",
     "latinizeurl-customurl": "自定义URL",
     "customurl-legend": "自定义URL",
     "customurl-url-field-label": "你想要设置的URL：",

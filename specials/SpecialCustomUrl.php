@@ -1,70 +1,184 @@
 <?php
 namespace LatinizeUrl;
 
-use FormSpecialPage;
+use UnlistedSpecialPage;
+use Html;
 use MediaWiki\MediaWikiServices;
-use phpDocumentor\Reflection\DocBlock\Tags\Var_;
+use MediaWiki\Session\CsrfTokenSet;
+use ThrottledError;
 
-class SpecialCustomUrl extends FormSpecialPage
-{
+class SpecialCustomUrl extends UnlistedSpecialPage {
     /**
-     * @var \Title $title
+     * @var string
+     */
+    protected $target;
+
+    /**
+     * @var \Title
      */
     protected $title;
-    protected $slug;
-    protected $isAdmin;
-    protected $userEditedPage;
 
-    public function __construct()
-    {
+    /** @var string */
+    protected $slug;
+
+    /** @var bool */
+    protected $isAdmin;
+
+    /** @var bool */
+    protected $userEditedPage;
+    
+    /** @var NamespaceInfo */
+	private $nsInfo;
+
+	/** @var LinkBatchFactory */
+	private $linkBatchFactory;
+
+    public function __construct() {
         parent::__construct('CustomUrl', '', false);
+
+        $service = MediaWikiServices::getInstance();
+        $this->nsInfo = $service->getNamespaceInfo();
+        $this->linkBatchFactory = $service->getLinkBatchFactory();
     }
 
-    public function doesWrites()
-    {
+    public function doesWrites() {
         return true;
     }
 
-    public function execute($par)
-    {
-        parent::execute($par);
+    public function execute($par) {
+		$this->useTransactionalTimeLimit();
 
-        $this->getSkin()->setRelevantTitle($this->title);
-        $out = $this->getOutput();
-        $out->setPageTitle($this->msg('latinizeurl-customurl', $this->title->getPrefixedText()));
-    }
+		$this->checkReadOnly();
 
-    protected function setParameter( $par ) {
+		$this->setHeaders();
+		$this->outputHeader();
+
         $service = MediaWikiServices::getInstance();
-		$title = \Title::newFromText( $par );
+		$request = $this->getRequest();
+        
+        $this->target = $par ?? $request->getText('target');
+		$title = \Title::newFromText($this->target);
 		$this->title = $title;
+        $this->getSkin()->setRelevantTitle($this->title);
 
-		if ( !$title ) {
+		$user = $this->getUser();
+
+		if (!$title) {
 			throw new \ErrorPageError( 'notargettitle', 'notargettext' );
+            return;
 		}
-		if ( !$title->exists() ) {
+		if (!$title->exists()) {
 			throw new \ErrorPageError( 'nopagetitle', 'nopagetext' );
         }
-        
-        
-        $isAdmin = $service->getPermissionManager()->userHasRight($this->getUser(), 'delete');
+
+        $isAdmin = $service->getPermissionManager()->userHasRight($this->getUser(), 'move');
         $this->isAdmin = $isAdmin;
         $userEditedPage = Utils::hasUserEditedPage($this->title, $this->getUser());
         $this->userEditedPage = $userEditedPage;
-    
-        $this->slug = $this->getCurrentSlug();
 
-        if(!$this->hasAccess()){
+        if (!$this->hasAccess()){
             throw new \PermissionsError('move');
         }
+
+        $this->slug = $this->getCurrentSlug();
+
+        if ($request->getRawVal('action') == 'submit' && $request->wasPosted() && $user->matchEditToken($request->getVal('wpEditToken'))) {
+			$this->doSubmit();
+		} else {
+			$this->showForm( [] );
+		}
     }
 
     protected function hasAccess(){
         return $this->isAdmin || $this->userEditedPage;
     }
     
-    protected function showForm($err, $isPermErr){
+    protected function showForm($err, $isPermError = false){
+        $user = $this->getUser();
+        $out = $this->getOutput();
+        $out->setPageTitle($this->msg('latinizeurl-customurl'));
+        $out->addModuleStyles([
+			'mediawiki.special',
+			'mediawiki.interface.helpers.styles'
+		]);
+		$out->addModules('mediawiki.misc-authed-ooui');
 
+        $out->enableOOUI();
+
+		$fields = [];
+
+        $fields[] = new \OOUI\FieldLayout(
+			new \OOUI\TextInputWidget([
+				'name' => 'wpSlug',
+				'id' => 'wpSlug',
+				'value' => $this->getCurrentSlug(),
+			]),
+			[
+				'label' => $this->msg('customurl-url-field-label')->text(),
+                'help' => $this->msg('customurl-url-field-help')->text(),
+				'align' => 'top',
+			]
+		);
+
+        if ($this->title->hasSubpages()) {
+            $fields[] = new \OOUI\FieldLayout(
+                new \OOUI\CheckboxInputWidget([
+                    'name' => 'wpRenameSubpage',
+                    'id' => 'wpRenameSubpage',
+                    'value' => '1',
+                ]),
+                [
+                    'label' => $this->msg('rename-subpage-checkbox-label')->text(),
+                    'align' => 'inline',
+                ]
+            );
+        }
+
+        $fields[] = new \OOUI\FieldLayout(
+			new \OOUI\ButtonInputWidget( [
+				'name' => 'wpConfirm',
+				'value' => $this->msg('htmlform-submit')->text(),
+				'label' => $this->msg('htmlform-submit')->text(),
+				'flags' => ['primary', 'progressive'],
+				'type' => 'submit',
+			]),
+			[
+				'align' => 'top',
+			]
+		);
+
+        $fieldset = new \OOUI\FieldsetLayout( [
+			'label' => $this->msg('customurl-legend')->text(),
+			'id' => 'mw-customurl-table',
+			'items' => $fields,
+		] );
+
+		$form = new \OOUI\FormLayout([
+			'method' => 'post',
+			'action' => $this->getPageTitle($this->target)->getLocalURL('action=submit'),
+			'id' => 'customurl',
+		]);
+
+        $form->appendContent(
+			$fieldset,
+			new \OOUI\HtmlSnippet(
+				Html::hidden('wpEditToken', $user->getEditToken())
+			)
+		);
+
+        $out->addHTML(
+			new \OOUI\PanelLayout([
+				'classes' => ['movepage-wrapper', 'customurl-wrapper'],
+				'expanded' => false,
+				'padded' => true,
+				'framed' => true,
+				'content' => $form,
+			])
+		);
+
+        if ($this->title->hasSubpages()) {
+		    $this->showSubpages($this->title);
+        }
     }
 
     private function getCurrentSlug(){
@@ -75,33 +189,22 @@ class SpecialCustomUrl extends FormSpecialPage
             return $this->title->getText();
         }
     }
-
-    protected function getFormFields() {
-        $fields = [];
-
-        $fields['slug'] = [
-            'type' => 'text',
-            'label-message' => 'customurl-url-field-label',
-            'help-message' => 'customurl-url-field-help',
-            'default' => $this->getCurrentSlug(),
-        ];
-
-        if($this->title->hasSubpages()){
-            $fields['rename-subpage'] = [
-                'type' => 'check',
-                'label-message' => 'rename-subpage-checkbox-label',
-                'default' => false,
-            ];
-        }
-
-		return $fields;
-    }
     
-    public function onSubmit(array $data, \HTMLForm $form = null ) {
+    public function doSubmit() {
+		$user = $this->getUser();
+
+		if ($user->pingLimiter('customurl')) {
+			throw new ThrottledError;
+		}
+
+		$request = $this->getRequest();
+        $slug = $request->getText('wpSlug');
+        $renameSubpages = $request->getBool('wpRenameSubpage');
+
         $originSlug = Utils::getSlugByTitle($this->title);
-        $slug = $data['slug'];
+
         $latinize = [];
-        if(empty($slug)){ //自动生成
+        if (empty($slug)) { //自动生成
             $parsedData = Utils::parseTitleToAscii($this->title, $this->title->getPageLanguage());
             $slug = $parsedData['slug'];
             $latinize = $parsedData['latinize'];
@@ -118,7 +221,7 @@ class SpecialCustomUrl extends FormSpecialPage
             $realSlug = Utils::addTitleSlugMap($this->title->getText(), $slug, $latinize, $custom);
         }
         
-        if(isset($data['rename-subpage']) && $data['rename-subpage']){
+        if($renameSubpages){
             //更新子页面的slug
             $subpages = $this->title->getSubpages();
             $originSlugLen = strlen($originSlug);
@@ -132,11 +235,76 @@ class SpecialCustomUrl extends FormSpecialPage
             }
         }
         $this->slug = $realSlug;
+
+        $this->onSuccess();
         return true;
     }
+    
+    /**
+	 * Show subpages of the page being moved. Section is not shown if both current
+	 * namespace does not support subpages and no talk subpages were found.
+	 *
+	 * @param Title $title Page being moved.
+	 */
+	private function showSubpages( $title ) {
+		$nsHasSubpages = $this->nsInfo->hasSubpages( $title->getNamespace() );
+		$subpages = $title->getSubpages();
+		$count = $subpages instanceof \TitleArray ? $subpages->count() : 0;
+
+		$titleIsTalk = $title->isTalkPage();
+		$subpagesTalk = $title->getTalkPage()->getSubpages();
+		$countTalk = $subpagesTalk instanceof \TitleArray ? $subpagesTalk->count() : 0;
+		$totalCount = $count + $countTalk;
+
+		if ( !$nsHasSubpages && $countTalk == 0 ) {
+			return;
+		}
+
+		$this->getOutput()->wrapWikiMsg(
+			'== $1 ==',
+			[ 'movesubpage', ( $titleIsTalk ? $count : $totalCount ) ]
+		);
+
+		if ( $nsHasSubpages ) {
+			$this->showSubpagesList( $subpages, $count, 'movesubpagetext', true );
+		}
+
+		if ( !$titleIsTalk && $countTalk > 0 ) {
+			$this->showSubpagesList( $subpagesTalk, $countTalk, 'movesubpagetalktext' );
+		}
+	}
+
+	private function showSubpagesList( $subpages, $pagecount, $wikiMsg, $noSubpageMsg = false ) {
+		$out = $this->getOutput();
+
+		# No subpages.
+		if ( $pagecount == 0 && $noSubpageMsg ) {
+			$out->addWikiMsg( 'movenosubpage' );
+			return;
+		}
+
+		$out->addWikiMsg( $wikiMsg, $this->getLanguage()->formatNum( $pagecount ) );
+		$out->addHTML( "<ul>\n" );
+
+		$linkBatch = $this->linkBatchFactory->newLinkBatch( $subpages );
+		$linkBatch->setCaller( __METHOD__ );
+		$linkBatch->execute();
+		$linkRenderer = $this->getLinkRenderer();
+
+		foreach ( $subpages as $subpage ) {
+			$link = $linkRenderer->makeLink( $subpage );
+			$out->addHTML( "<li>$link</li>\n" );
+		}
+		$out->addHTML( "</ul>\n" );
+	}
 
     public function onSuccess(){
         $out = $this->getOutput();
+        $out->setPageTitle($this->msg('latinizeurl-customurl'));
         $out->addWikiMsg('customurl-set-success', $this->title->getText(), str_replace(' ', '_', $this->slug));
     }
+
+	protected function getGroupName() {
+		return 'pagetools';
+	}
 }

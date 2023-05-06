@@ -1,9 +1,9 @@
 {
-    "name": "chs/pinyin-url",
+    "name": "hyperzlib/pinyin-url",
     "type": "project",
     "authors": [
         {
-            "name": "无名写手",
+            "name": "hyperzlib",
             "email": "hyperzlib@outlook.com"
         }
     ],

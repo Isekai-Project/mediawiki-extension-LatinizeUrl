@@ -1,11 +1,14 @@
 {
   "name": "LatinizeUrl",
-  "author": "hyperzlib",
+  "author": "Hyperzlib",
   "url": "https://github.com/Isekai-Project/mediawiki-extension-LatinizeUrl",
   "descriptionmsg": "latinizeurl-desc",
   "version": "1.0.4",
   "license-name": "MIT",
   "type": "other",
+  "requires": {
+    "MediaWiki": ">= 1.39.0"
+  },
   "ExtensionMessagesFiles": {
     "LatinizeUrlAlias": "LatinizeUrl.alias.php"
   },
@@ -29,8 +32,8 @@
     "Collation::factory": [
       "LatinizeUrl\\Hooks::onCollationFactory"
     ],
-    "SkinTemplateOutputPageBeforeExec": [
-      "LatinizeUrl\\Hooks::onSkinTemplateOutputPageBeforeExec"
+    "SkinTemplateNavigation::Universal": [
+      "LatinizeUrl\\Hooks::addToolboxLink"
     ],
     "BeforePageDisplay": [
       "LatinizeUrl\\Hooks::onBeforePageDisplay"
@@ -38,14 +41,14 @@
     "InitializeParseTitle": [
       "LatinizeUrl\\Hooks::onInitializeParseTitle"
     ],
-    "ArticleDeleteComplete": [
-      "LatinizeUrl\\Hooks::onArticleDeleteComplete"
+    "PageDeleteComplete": [
+      "LatinizeUrl\\Hooks::onPageDeleteComplete"
     ],
-    "PageContentInsertComplete": [
-      "LatinizeUrl\\Hooks::onPageContentInsertComplete"
+    "PageSaveComplete": [
+      "LatinizeUrl\\Hooks::onPageSaveComplete"
     ],
-    "TitleMoveComplete": [
-      "LatinizeUrl\\Hooks::onTitleMoveComplete"
+    "PageMoveComplete": [
+      "LatinizeUrl\\Hooks::onPageMoveComplete"
     ],
     "GetLocalURL": [
       "LatinizeUrl\\Hooks::onGetArticleUrl"
@@ -67,7 +70,12 @@
     "remoteExtPath": "LatinizeUrl"
   },
   "config": {
-    "LatinizeUrlForceRedirect": true
+    "LatinizeUrlConfig": {
+      "value": {}
+    },
+    "LatinizeUrlForceRedirect": {
+      "value": true
+    }
   },
-  "manifest_version": 1
+  "manifest_version": 2
 }

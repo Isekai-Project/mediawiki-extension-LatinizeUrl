@@ -1,13 +1,14 @@
 <?php
 namespace LatinizeUrl;
 
-use Title;
-use Article;
-use OutputPage;
-use User;
-use MediaWiki\Linker\LinkRenderer;
 use MediaWiki\Linker\LinkTarget;
+use Title;
+use User;
 use MediaWiki\MediaWikiServices;
+use MediaWiki\Page\ProperPageIdentity;
+use MediaWiki\Permissions\Authority;
+use MediaWiki\User\UserIdentity;
+use TitleValue;
 use Wikimedia\Rdbms\DBQueryError;
 
 class Hooks {
@@ -36,8 +37,11 @@ class Hooks {
     }
 
     /* 将拼音映射转换为原标题 */
-    public static function onInitializeParseTitle(Title &$title, $request){
-        global $wgLatinizeUrlForceRedirect;
+    public static function onInitializeParseTitle(Title &$title, $request) {
+        $service = MediaWikiServices::getInstance();
+
+        $config = $service->getMainConfig();
+        $wgLatinizeUrlForceRedirect = $config->get('LatinizeUrlForceRedirect');
 
         if(in_array($title->getNamespace(), self::$allowedNS)){
             $realTitle = Utils::getTitleBySlugUrl($title, $title->getNamespace());
@@ -59,43 +63,54 @@ class Hooks {
         try {
             if(in_array($title->getNamespace(), self::$allowedNS) && Utils::titleSlugExists($title)){
                 $slug = Title::newFromText(Utils::getSlugUrlByTitle($title), $title->getNamespace());
-                $slugEncoded = Utils::encodeUriComponent($slug->getPrefixedText());
-                $titleEncoded = Utils::encodeUriComponent($title->getPrefixedText());
-                $url = str_replace($titleEncoded, $slugEncoded, $url);
+                if ($slug) {
+                    $slugEncoded = Utils::encodeUriComponent($slug->getPrefixedText());
+                    $titleEncoded = Utils::encodeUriComponent($title->getPrefixedText());
+                    $url = str_replace($titleEncoded, $slugEncoded, $url);
+                }
             }
         } catch(DBQueryError $ex){
             
         }
     }
 
-    public static function onArticleDeleteComplete(&$article, User &$user, $reason, $id, \Content $content = null, \LogEntry $logEntry){
-        if(in_array($article->getTitle()->getNamespace(), self::$allowedNS)){
-            Utils::removeTitleSlugMap($article->getTitle()->getText());
+    public static function onPageDeleteComplete(ProperPageIdentity $page, Authority $deleter, $reason, $pageID, $deletedRev, $logEntry, $archivedRevisionCount) {
+        $title = TitleValue::newFromPage( $page );
+        if(in_array($title->getNamespace(), self::$allowedNS)){ //不是普通页面就跳过
+            Utils::removeTitleSlugMap($title->getText());
         }
     }
 
-    public static function onPageContentInsertComplete(\WikiPage &$wikiPage, User &$user, $content, $summary, $isMinor, $isWatch, $section, &$flags, $revision){
+    
+    /**
+     * @param \WikiPage $wikiPage
+     * @param \MediaWiki\User\UserIdentity $user
+     * @param string $summary
+     * @param int $flags
+     * @param \MediaWiki\Revision\RevisionRecord $revisionRecord
+     * @param \MediaWiki\Storage\EditResult $editResult
+     */
+    public static function onPageSaveComplete(&$wikiPage, $user, $summary, $flags, $revisionRecord, $editResult){
         if(!in_array($wikiPage->getTitle()->getNamespace(), self::$allowedNS)){ //不是普通页面就跳过
             return;
         }
         
-        try {
+        if ($flags & EDIT_NEW) {
             $title = $wikiPage->getTitle();
             $parsedData = Utils::parseTitleToAscii($title, $title->getPageLanguage());
             Utils::addTitleSlugMap($title->getText(), $parsedData['slug'], $parsedData['latinize']);
-        } catch (\Exception $e) {
-
         }
     }
 
-    public static function onTitleMoveComplete(Title &$title, Title &$newTitle, User $user, $oldid, $newid, $reason, $revision){
-        if(!in_array($newTitle->getNamespace(), self::$allowedNS)){ //不是普通页面就跳过
+    public static function onPageMoveComplete(LinkTarget $old, LinkTarget $new, UserIdentity $userIdentity, $pageid, $redirid, $reason, $revision) {
+        if (!in_array($new->getNamespace(), self::$allowedNS)) { //不是普通页面就跳过
             return;
         }
+        $title = MediaWikiServices::getInstance()->getTitleFactory()->newFromLinkTarget($new);
         
         try {
-            $parsedData = Utils::parseTitleToAscii($newTitle, $newTitle->getPageLanguage());
-            Utils::addTitleSlugMap($newTitle->getText(), $parsedData['slug'], $parsedData['latinize']);
+            $parsedData = Utils::parseTitleToAscii($title, $title->getPageLanguage());
+            Utils::addTitleSlugMap($title->getText(), $parsedData['slug'], $parsedData['latinize']);
         } catch (\Exception $e) {
 
         }
@@ -117,14 +132,14 @@ class Hooks {
         }
     }
 
-    public static function onSkinTemplateOutputPageBeforeExec(\Skin $skin, \QuickTemplate $template){
+    public static function addToolboxLink(\Skin $skin, array &$links){
         $service = MediaWikiServices::getInstance();
         $user = $skin->getContext()->getUser();
         
         $title = $skin->getRelevantTitle();
         if(in_array($title->getNamespace(), self::$allowedNS)){
             if($service->getPermissionManager()->userHasRight($user, 'delete') || Utils::hasUserEditedPage($title, $user)){
-                $template->data['content_navigation']['page-secondary']['custom-url'] = [
+                $links['page-secondary']['custom-url'] = [
                     'class' => false,
                     'text' => wfMessage('latinizeurl-customurl')->text(),
                     'href' => \SpecialPage::getTitleFor('CustomUrl', $title->getPrefixedDBKey())->getLocalURL(),

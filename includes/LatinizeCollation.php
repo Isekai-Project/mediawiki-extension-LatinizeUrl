@@ -5,7 +5,7 @@ use Collation;
 use MediaWiki\MediaWikiServices;
 
 class LatinizeCollation extends Collation {
-    private $cache = null;
+    private $cache;
 
     public function __construct(){
         $this->cache = MediaWikiServices::getInstance()->getMainWANObjectCache();
@@ -18,8 +18,7 @@ class LatinizeCollation extends Collation {
             function() use($string){
                 $convertor = Utils::getConvertor();
                 $latinize = $convertor->parse($string);
-                $slug = Utils::wordListToUrl($latinize);
-                return $slug;
+                return Utils::wordListToUrl($latinize);
             }
         );
     }

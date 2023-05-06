@@ -1,11 +1,12 @@
 <?php
 require_once dirname(__DIR__, 3) . '/maintenance/Maintenance.php';
-require_once dirname(__DIR__) . '/includes/Hanzi2Pinyin.php';
+require_once dirname(__DIR__) . '/ChineseConvertor/ChineseConvertor.php';
 require_once dirname(__DIR__) . '/includes/Utils.php';
 
 use LatinizeUrl\ChineseConvertor;
 use LatinizeUrl\Hanzi2Pinyin;
 use LatinizeUrl\Utils;
+use MediaWiki\MediaWikiServices;
 
 /**
  * Maintenance script to normalize double-byte Latin UTF-8 characters.
@@ -26,7 +27,10 @@ class UpdateLatinizeUrl extends Maintenance {
     }
 
 	public function execute() {
-		global $wgLatinizeUrlConfig;
+		$service = MediaWikiServices::getInstance();
+
+		$config = $service->getMainConfig();
+		$latinizeUrlConf = $config->get('LatinizeUrlConfig');
 		
 		$force = $this->hasOption( 'force' );
 		$outputFileName = $this->getArg( 0 );
@@ -35,12 +39,12 @@ class UpdateLatinizeUrl extends Maintenance {
 			$outputFile = fopen($outputFileName, 'w');
 		}
 
-		$dbw = $this->getDB( DB_MASTER );
+		$dbw = $this->getDB( DB_PRIMARY );
 		if ( $dbw->getType() !== 'mysql' ) {
 			$this->fatalError( "This change is only needed on MySQL, quitting.\n" );
 		}
         
-		$convertor = new ChineseConvertor($wgLatinizeUrlConfig);
+		$convertor = new ChineseConvertor($latinizeUrlConf);
 
 		$res = $this->findRows( $dbw );
 		foreach($res as $one){
@@ -65,11 +69,16 @@ class UpdateLatinizeUrl extends Maintenance {
 	}
 
 	public function searchIndexUpdateCallback( $dbw, $row ) {
-		return $this->updateSearchIndexForPage( $dbw, $row->si_page );
+		// return $this->updateSearchIndexForPage( $dbw, $row->si_page );
 	}
 
-	private function getFullUrl($pageName){
-		global $wgServer, $wgArticlePath, $wgUsePathInfo;
+	private function getFullUrl($pageName) {
+		$service = MediaWikiServices::getInstance();
+
+		$config = $service->getMainConfig();
+		$wgServer = $config->get('Server');
+		$wgArticlePath = $config->get('ArticlePath');
+		$wgUsePathInfo = $config->get('UsePathInfo');
 		$pageName = implode("/", array_map("urlencode", explode("/", $pageName)));
 		if($wgUsePathInfo){
 			return $wgServer . str_replace('$1', $pageName, $wgArticlePath);

@@ -3,7 +3,6 @@
 namespace LatinizeUrl;
 
 use Exception;
-use MediaWiki\Http\HttpRequestFactory;
 use MediaWiki\MediaWikiServices;
 
 class JapaneseConvertor extends BaseConvertor {
@@ -12,7 +11,11 @@ class JapaneseConvertor extends BaseConvertor {
 
     public static function standalone(){
         if(!self::$standalone){
-            global $wgLatinizeUrlJapaneseConvertorConfig;
+            $service = MediaWikiServices::getInstance();
+
+            $config = $service->getMainConfig();
+            $wgLatinizeUrlJapaneseConvertorConfig = $config->get('LatinizeUrlJapaneseConvertorConfig');
+            
             self::$standalone = new self($wgLatinizeUrlJapaneseConvertorConfig);
         }
         return self::$standalone;

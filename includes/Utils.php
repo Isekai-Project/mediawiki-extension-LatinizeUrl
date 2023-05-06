@@ -7,7 +7,9 @@ use ExtensionRegistry;
 use Title;
 use User;
 use Language;
+use MediaWiki\Extension\AbuseFilter\Consequences\Consequence\Tag;
 use MediaWiki\MediaWikiServices;
+use StubUserLang;
 
 class Utils {
     private static $dbr = null;
@@ -16,13 +18,15 @@ class Utils {
 
     public static function initMasterDb(){
         if(!self::$dbw){
-            self::$dbw = wfGetDB(DB_MASTER);
+            self::$dbw =  MediaWikiServices::getInstance()->getDBLoadBalancer()
+                ->getMaintenanceConnectionRef(DB_PRIMARY);
         }
     }
 
     public static function initReplicaDb(){
         if(!self::$dbr){
-            self::$dbr = wfGetDB(DB_REPLICA);
+            self::$dbr = MediaWikiServices::getInstance()->getDBLoadBalancer()
+                ->getMaintenanceConnectionRef(DB_REPLICA);
         }
     }
 
@@ -329,22 +333,22 @@ class Utils {
         return false;
     }
 
-    public static function encodeUriComponent($str){
+    public static function encodeUriComponent($str) {
         $entities = ['+', '%21', '%2A', '%27', '%28', '%29', '%3B', '%3A', '%40', '%26', '%3D', '%2B', '%24', '%2C', '%2F', '%3F', '%25', '%23', '%5B', '%5D'];
         $replacements = ['_', '!', '*', "'", "(", ")", ";", ":", "@", "&", "=", "+", "$", ",", "/", "?", "%", "#", "[", "]"];
         return str_replace($entities, $replacements, implode("/", array_map("urlencode", explode("/", $str))));
     }
 
     /**
-     * @param Language|string|null $language - 语言
+     * @param Language|StubUserLang|string|null $language - 语言
      * @return BaseConvertor 转换器
      */
-    public static function getConvertor($language = null){
-        if($language == null){
+    public static function getConvertor($language = null) {
+        if ($language == null) {
             $language = MediaWikiServices::getInstance()->getContentLanguage();
         }
 
-        if($language instanceof Language){
+        if (is_callable([$language, 'getCode'])) {
             $language = $language->getCode();
         }
 
@@ -360,7 +364,7 @@ class Utils {
 
     /**
      * @param Title $title - 要转换的标题
-     * @param Language|string|null $language - 语言
+     * @param Language|StubUserLang|string|null $language - 语言
      * @return mixed 转换器
      */
     public static function parseTitleToAscii(Title $title, Language $language){

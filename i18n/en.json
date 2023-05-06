@@ -1,5 +1,5 @@
 {
-    "latinizeurl-desc": "Latinize none-ASCII chars in url.",
+    "latinizeurl-desc": "Convert none-ASCII chars to ASCII chars in url.",
     "latinizeurl-customurl": "Custom URL",
     "customurl-legend": "Custom URL",
     "customurl-url-field-label": "The URL you want to use:",

@@ -2,8 +2,6 @@
 namespace LatinizeUrl;
 
 use Exception;
-use MWHttpRequest;
-use MediaWiki\Http\HttpRequestFactory;
 use Fukuball\Jieba\Jieba;
 use Fukuball\Jieba\Finalseg;
 use Fukuball\Jieba\Posseg;
@@ -19,7 +17,11 @@ class ChineseConvertor extends BaseConvertor {
 
     public static function standalone(){
         if(!self::$standalone){
-            global $wgLatinizeUrlChineseConvertorConfig;
+            $service = MediaWikiServices::getInstance();
+
+            $config = $service->getMainConfig();
+            $wgLatinizeUrlChineseConvertorConfig = $config->get('LatinizeUrlChineseConvertorConfig');
+
             self::$standalone = new self($wgLatinizeUrlChineseConvertorConfig);
         }
         return self::$standalone;
