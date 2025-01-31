@@ -218,6 +218,8 @@ class Utils {
 
         if (!$title) return false;
 
+        self::initCache();
+
         return self::$cache->getWithSetCallback(
             self::$cache->makeKey('title2slugurl', $title->getText()),
             self::$cache::TTL_MINUTE * 10,
