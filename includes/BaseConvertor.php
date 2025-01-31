@@ -1,4 +1,5 @@
 <?php
+
 namespace LatinizeUrl;
 
 abstract class BaseConvertor {

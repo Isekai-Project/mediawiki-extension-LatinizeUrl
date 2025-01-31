@@ -1,49 +1,48 @@
 <?php
+
 namespace LatinizeUrl;
 
-use Article;
 use Exception;
-use ExtensionRegistry;
-use Title;
-use User;
+use MediaWiki\Title\Title;
+use MediaWiki\User\User;
 use Language;
-use MediaWiki\Extension\AbuseFilter\Consequences\Consequence\Tag;
 use MediaWiki\MediaWikiServices;
 use StubUserLang;
+use MediaWiki\Registration\ExtensionRegistry;
 
 class Utils {
     private static $dbr = null;
     private static $dbw = null;
     private static $cache = null;
 
-    public static function initMasterDb(){
-        if(!self::$dbw){
+    public static function initMasterDb() {
+        if (!self::$dbw) {
             self::$dbw =  MediaWikiServices::getInstance()->getDBLoadBalancer()
                 ->getMaintenanceConnectionRef(DB_PRIMARY);
         }
     }
 
-    public static function initReplicaDb(){
-        if(!self::$dbr){
+    public static function initReplicaDb() {
+        if (!self::$dbr) {
             self::$dbr = MediaWikiServices::getInstance()->getDBLoadBalancer()
                 ->getMaintenanceConnectionRef(DB_REPLICA);
         }
     }
 
-    public static function initCache(){
-        if(!self::$cache){
+    public static function initCache() {
+        if (!self::$cache) {
             self::$cache = MediaWikiServices::getInstance()->getMainWANObjectCache();
         }
     }
 
-    public static function slugExists($slug, $excludeUrl = null){
-        if($excludeUrl){
+    public static function slugExists($slug, $excludeUrl = null) {
+        if ($excludeUrl) {
             self::initReplicaDb();
 
             $cond = [
                 'slug' => $slug,
             ];
-            
+
             $cond['url'] = ['!', self::$dbr->addQuotes($excludeUrl)];
             $res = self::$dbr->selectField('url_slug', 'COUNT(*)', $cond, __METHOD__);
             return intval($res) > 0;
@@ -52,50 +51,67 @@ class Utils {
         }
     }
 
-    public static function slugUrlExists($url){
+    public static function slugUrlExists($url) {
         return self::getTitleTextBySlugUrl($url) !== false;
     }
 
-    public static function titleSlugExists($title){
+    public static function titleSlugExists($title) {
         return self::getSlugByTitle($title) !== false;
     }
 
-    public static function getTitleBySlug($slug, $namespace = NS_MAIN){
-        if($slug instanceof Title){
+    public static function getTitleBySlug($slug, $namespace = NS_MAIN) {
+        if ($slug instanceof Title) {
             $namespace = $slug->getNamespace();
             $slug = $slug->getText();
         }
 
         $titleText = self::getTitleTextBySlug($slug);
-        if($titleText){
+        if ($titleText) {
             return Title::newFromText($titleText, $namespace);
         } else {
             return false;
         }
     }
 
-    public static function getTitleBySlugUrl($url, $namespace = NS_MAIN){
-        if($url instanceof Title){
+    /**
+     * 从URL中获取标题
+     * @param Title|string $url
+     * @param int $namespace
+     */
+    public static function getTitleBySlugUrl($url, $namespace = NS_MAIN) {
+        if ($url instanceof Title) {
             $namespace = $url->getNamespace();
             $url = $url->getText();
         }
 
+        $wikiPageFactory = MediaWikiServices::getInstance()->getWikiPageFactory();
+        // 新版在URL中加了pageId
+        if (preg_match('/^(\d+?)~/', $url, $matches)) {
+            $pageId = intval($matches[1]);
+
+            $wikiPage = $wikiPageFactory->newFromID($pageId);
+            if ($wikiPage) {
+                return $wikiPage->getTitle();
+            }
+        }
+
+        // 旧版URL
         $titleText = self::getTitleTextBySlugUrl($url);
-        if($titleText){
+        if ($titleText) {
             return Title::newFromText($titleText, $namespace);
         } else {
             return false;
         }
     }
 
-    public static function getTitleTextBySlug($slug){
+    public static function getTitleTextBySlug($slug) {
         self::initCache();
         self::initReplicaDb();
 
         return self::$cache->getWithSetCallback(
             self::$cache->makeKey('slug2title', $slug),
             self::$cache::TTL_MINUTE * 10,
-            function() use($slug){
+            function () use ($slug) {
                 $res = self::$dbr->select('url_slug', ['title'], [
                     'slug' => $slug,
                 ], __METHOD__, [
@@ -111,20 +127,20 @@ class Utils {
         );
     }
 
-    public static function getTitleTextBySlugUrl($url){
+    public static function getTitleTextBySlugUrl($url) {
         self::initCache();
         self::initReplicaDb();
 
         return self::$cache->getWithSetCallback(
             self::$cache->makeKey('slugurl2title', $url),
             self::$cache::TTL_MINUTE * 10,
-            function() use($url){
+            function () use ($url) {
                 $res = self::$dbr->select('url_slug', ['title'], [
                     'url' => $url,
                 ], __METHOD__, [
                     'LIMIT' => 1,
                 ]);
-                if($res->numRows() > 0){
+                if ($res->numRows() > 0) {
                     $data = $res->fetchRow();
                     return $data['title'];
                 } else {
@@ -134,8 +150,8 @@ class Utils {
         );
     }
 
-    public static function getSlugByTitle($title){
-        if($title instanceof Title){
+    public static function getSlugByTitle($title) {
+        if ($title instanceof Title) {
             $title = $title->getText();
         }
 
@@ -145,13 +161,13 @@ class Utils {
         return self::$cache->getWithSetCallback(
             self::$cache->makeKey('title2slug', $title),
             self::$cache::TTL_MINUTE * 10,
-            function() use($title){
+            function () use ($title) {
                 $res = self::$dbr->select('url_slug', ['slug'], [
                     'title' => $title,
                 ], __METHOD__, [
                     'LIMIT' => 1,
                 ]);
-                if($res->numRows() > 0){
+                if ($res->numRows() > 0) {
                     $data = $res->fetchRow();
                     return $data['slug'];
                 } else {
@@ -161,26 +177,33 @@ class Utils {
         );
     }
 
-    public static function getSlugUrlByTitle($title){
-        if($title instanceof Title){
-            $title = $title->getText();
+    public static function getSlugUrlByTitleWithoutId($title) {
+        if ($title instanceof Title) {
+            $titleText = $title->getText();
+        } else {
+            $titleText = $title;
+            $title = Title::newFromText($title);
         }
 
         self::initCache();
         self::initReplicaDb();
 
         return self::$cache->getWithSetCallback(
-            self::$cache->makeKey('title2slugurl', $title),
+            self::$cache->makeKey('title2slugurlorig', $titleText),
             self::$cache::TTL_MINUTE * 10,
-            function() use($title){
+            function () use ($title, $titleText) {
                 $res = self::$dbr->select('url_slug', ['url'], [
                     'title' => $title,
                 ], __METHOD__, [
                     'LIMIT' => 1,
                 ]);
-                if($res->numRows() > 0){
+
+                if ($res->numRows() > 0) {
                     $data = $res->fetchRow();
-                    return $data['url'];
+
+                    $url = $data['url'];
+
+                    return $url;
                 } else {
                     return false;
                 }
@@ -188,20 +211,50 @@ class Utils {
         );
     }
 
-    public static function getSlugDataByTitle($title){
-        if($title instanceof Title){
+    public static function getSlugUrlByTitle($title) {
+        if (is_string($title)) {
+            $title = Title::newFromText($title);
+        }
+
+        if (!$title) return false;
+
+        return self::$cache->getWithSetCallback(
+            self::$cache->makeKey('title2slugurl', $title->getText()),
+            self::$cache::TTL_MINUTE * 10,
+            function () use ($title) {
+                $slugUrl = self::getSlugUrlByTitleWithoutId($title);
+                if (!$slugUrl) return false;
+
+                $wikiPageFactory = MediaWikiServices::getInstance()->getWikiPageFactory();
+
+                if (!$title->isMainPage()) {
+                    $wikiPage = $wikiPageFactory->newFromTitle($title);
+
+                    if ($wikiPage) {
+                        $pageId = $wikiPage->getId();
+                        $slugUrl = "{$pageId}~" . $slugUrl;
+                    }
+                }
+
+                return $slugUrl;
+            }
+        );
+    }
+
+    public static function getSlugDataByTitle($title) {
+        if ($title instanceof Title) {
             $title = $title->getText();
         }
 
         self::initCache();
         self::initReplicaDb();
-        
+
         $res = self::$dbr->select('url_slug', '*', [
             'title' => $title,
         ], __METHOD__, [
             'LIMIT' => 1,
         ]);
-        if($res->numRows() > 0){
+        if ($res->numRows() > 0) {
             $data = $res->fetchRow();
             return $data;
         } else {
@@ -209,15 +262,15 @@ class Utils {
         }
     }
 
-    public static function addTitleSlugMap($title, $slug, $latinize = [], $custom = 0){
-        if(self::titleSlugExists($title)){
+    public static function addTitleSlugMap($title, $slug, $latinize = [], $custom = 0) {
+        if (self::titleSlugExists($title)) {
             throw new Exception("Title slug map already exists: " . $title);
         }
         self::initMasterDb();
-        
+
         $exists = self::slugExists($slug);
 
-        if($exists){
+        if ($exists) {
             $url = $slug . '-id';
         } else {
             $url = $slug;
@@ -232,7 +285,7 @@ class Utils {
             'latinize' => json_encode($latinize),
         ), __METHOD__);
         $lastId = self::$dbw->insertId();
-        if($exists){
+        if ($exists) {
             $url = $slug . '-' . $lastId;
             self::$dbw->update('url_slug', [
                 'url' => $url,
@@ -243,8 +296,8 @@ class Utils {
         return $url;
     }
 
-    public static function updateTitleSlugMap($title, $slug, $latinize = [], $custom = 0){
-        if(!self::titleSlugExists($title)){
+    public static function updateTitleSlugMap($title, $slug, $latinize = [], $custom = 0) {
+        if (!self::titleSlugExists($title)) {
             throw new Exception("Title slug map not exists: " . $title);
         }
         self::initMasterDb();
@@ -253,15 +306,15 @@ class Utils {
         $res = self::$dbr->selectRow('url_slug', ['id', 'slug', 'url', 'show_id'], [
             'title' => $title,
         ], __METHOD__);
-        
+
         $mapId = intval($res->id);
         $oldSlug = $res->slug;
         $oldUrl = $res->url;
 
-        if($oldSlug == $slug) return $oldUrl;
+        if ($oldSlug == $slug) return $oldUrl;
 
         $exists = self::slugExists($slug, $slug);
-        if($exists){
+        if ($exists) {
             $url = $slug . '-' . strval($mapId);
         } else {
             $url = $slug;
@@ -273,7 +326,7 @@ class Utils {
             'show_id' => $exists ? 1 : 0,
             'is_custom' => $custom,
         ];
-        if(!empty($latinize)){
+        if (!empty($latinize)) {
             $data['latinize'] = json_encode($latinize);
         }
 
@@ -288,18 +341,18 @@ class Utils {
         return $url;
     }
 
-    public static function replaceTitleSlugMap($title, $slug, $latinize = [], $custom = 0){
-        if(self::titleSlugExists($title)){
+    public static function replaceTitleSlugMap($title, $slug, $latinize = [], $custom = 0) {
+        if (self::titleSlugExists($title)) {
             return self::updateTitleSlugMap($title, $slug, $latinize, $custom);
         } else {
             return self::addTitleSlugMap($title, $slug, $latinize, $custom);
         }
     }
 
-    public static function removeTitleSlugMap($title){
+    public static function removeTitleSlugMap($title) {
         self::initMasterDb();
 
-        if(self::titleSlugExists($title)){
+        if (self::titleSlugExists($title)) {
             $oldData = self::$dbr->selectRow('url_slug', ['slug', 'url'], [
                 'title' => $title,
             ], __METHOD__);
@@ -307,7 +360,7 @@ class Utils {
             self::$dbw->delete('url_slug', [
                 'title' => $title,
             ]);
-            
+
             self::$cache->delete(self::$cache->makeKey('slug2title', $oldData->slug));
             self::$cache->delete(self::$cache->makeKey('slugurl2title', $oldData->url));
             self::$cache->delete(self::$cache->makeKey('title2slug', $title));
@@ -318,12 +371,14 @@ class Utils {
         }
     }
 
-    public static function hasUserEditedPage(Title $title, User $user){
-        if($user->isAnon()) return false;
-        if(!$title->exists()) return false;
-        $article = Article::newFromID($title->getArticleID());
-        if($article == null) return false;
-        $wikiPage = Article::newFromID($title->getArticleID())->getPage();
+    public static function hasUserEditedPage(Title $title, User $user) {
+        if ($user->isAnon()) return false;
+        if (!$title->exists()) return false;
+
+        $wikiPageFactory = MediaWikiServices::getInstance()->getWikiPageFactory();
+
+        $wikiPage = $wikiPageFactory->newFromTitle($title);
+        if (!$wikiPage) return false;
         $contributors = $wikiPage->getContributors();
         foreach ($contributors as $contributor) {
             if ($contributor->equals($user)) {
@@ -367,67 +422,77 @@ class Utils {
      * @param Language|StubUserLang|string|null $language - 语言
      * @return mixed 转换器
      */
-    public static function parseTitleToAscii(Title $title, Language $language){
-        $convertor = self::getConvertor($language);
-        if($title->isSubpage()){
-            //处理子页面，按照页面拆分
-            $titlePathList = explode('/', $title->getText());
-			$titlePathLen = count($titlePathList);
-            $unparsed = $title->getText();
-            $baseSlug = false;
-            for($i = $titlePathLen - 2; $i >= 0; $i --){
-                $titleSubPath = implode('/', array_slice($titlePathList, 0, $i + 1));
-                $baseTitle = Title::newFromText($titleSubPath, $title->getNamespace());
-                $baseSlug = self::getSlugUrlByTitle($baseTitle);
-                if($baseSlug){
-                    $unparsed = implode('/', array_slice($titlePathList, $i + 1));
-                    break;
+    public static function parseTitleToAscii(Title $title, Language $language) {
+        try {
+            $convertor = self::getConvertor($language);
+            if ($title->isSubpage()) {
+                //处理子页面，按照页面拆分
+                $titlePathList = explode('/', $title->getText());
+                $titlePathLen = count($titlePathList);
+                $unparsed = $title->getText();
+                $baseSlug = false;
+                for ($i = $titlePathLen - 2; $i >= 0; $i--) {
+                    $titleSubPath = implode('/', array_slice($titlePathList, 0, $i + 1));
+                    $baseTitle = Title::newFromText($titleSubPath, $title->getNamespace());
+                    $baseSlug = self::getSlugUrlByTitle($baseTitle);
+                    if ($baseSlug) {
+                        $unparsed = implode('/', array_slice($titlePathList, $i + 1));
+                        break;
+                    }
                 }
-            }
-            $parsed = $convertor->parse($unparsed);
-            if($parsed){
-                $parsedSlug = self::wordListToUrl($parsed);
-                if($baseSlug){
-                    return [
-                        'slug' => $baseSlug . '/' . $parsedSlug,
-                        'latinize' => array_merge([$baseSlug, '/'], $parsed),
-                    ];
+                $parsed = $convertor->parse($unparsed);
+                if ($parsed) {
+                    $parsedSlug = self::wordListToUrl($parsed);
+                    if ($baseSlug) {
+                        return [
+                            'slug' => $baseSlug . '/' . $parsedSlug,
+                            'latinize' => array_merge([$baseSlug, '/'], $parsed),
+                        ];
+                    } else {
+                        return [
+                            'slug' => $parsedSlug,
+                            'latinize' => $parsed,
+                        ];
+                    }
                 } else {
+                    return false;
+                }
+            } else {
+                $parsed = $convertor->parse($title->getText());
+                if ($parsed) {
+                    $parsedSlug = self::wordListToUrl($parsed);
                     return [
                         'slug' => $parsedSlug,
                         'latinize' => $parsed,
                     ];
+                } else {
+                    return false;
                 }
-            } else {
-                return false;
             }
-        } else {
-            $parsed = $convertor->parse($title->getText());
-            if($parsed){
-                $parsedSlug = self::wordListToUrl($parsed);
-                return [
-                    'slug' => $parsedSlug,
-                    'latinize' => $parsed,
-                ];
-            } else {
-                return false;
-            }
+        } catch (Exception $ex) {
+            wfLogWarning('Cannot parse title to ascii: ' . $ex->getMessage());
+            wfLogWarning($ex->getTraceAsString(), E_USER_ERROR);
+            return false;
         }
     }
 
-    public static function getVersion(){
+    public static function getVersion() {
         return ExtensionRegistry::getInstance()->getAllThings()['LatinizeUrl']['version'];
     }
 
-    public static function wordListToUrl($sentenceList){
+    /**
+     * @param string[] $sentenceList
+     * @return string
+     */
+    public static function wordListToUrl($sentenceList) {
         $strBuilder = [];
-        foreach($sentenceList as $pinyinList){
-            if(is_array($pinyinList)){
+        foreach ($sentenceList as $pinyinList) {
+            if (is_array($pinyinList)) {
                 $segStrBuilder = [];
-                foreach($pinyinList as $pinyinGroup){
-                    if(is_array($pinyinGroup)){
+                foreach ($pinyinList as $pinyinGroup) {
+                    if (is_array($pinyinGroup)) {
                         $groupStrBuilder = [];
-                        foreach($pinyinGroup as $pinyin){
+                        foreach ($pinyinGroup as $pinyin) {
                             $groupStrBuilder[] = ucfirst($pinyin);
                         }
                         $segStrBuilder[] = implode('', $groupStrBuilder);

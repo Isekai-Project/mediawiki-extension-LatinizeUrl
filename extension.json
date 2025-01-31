@@ -3,11 +3,11 @@
   "author": "Hyperzlib",
   "url": "https://github.com/Isekai-Project/mediawiki-extension-LatinizeUrl",
   "descriptionmsg": "latinizeurl-desc",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "license-name": "MIT",
   "type": "other",
   "requires": {
-    "MediaWiki": ">= 1.39.0"
+    "MediaWiki": ">= 1.43.0"
   },
   "ExtensionMessagesFiles": {
     "LatinizeUrlAlias": "LatinizeUrl.alias.php"
@@ -32,11 +32,14 @@
     "Collation::factory": [
       "LatinizeUrl\\Hooks::onCollationFactory"
     ],
-    "SkinTemplateNavigation::Universal": [
+    "SidebarBeforeOutput": [
       "LatinizeUrl\\Hooks::addToolboxLink"
     ],
     "BeforePageDisplay": [
       "LatinizeUrl\\Hooks::onBeforePageDisplay"
+    ],
+    "BeforeInitialize": [
+      "LatinizeUrl\\Hooks::onBeforeInitialize"
     ],
     "InitializeParseTitle": [
       "LatinizeUrl\\Hooks::onInitializeParseTitle"
