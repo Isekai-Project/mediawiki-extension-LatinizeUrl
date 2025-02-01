@@ -93,12 +93,6 @@ class Hooks {
                 $slugEncoded = Utils::encodeUriComponent($slugTitle->getPrefixedText());
                 $titleEncoded = Utils::encodeUriComponent($title->getPrefixedText());
 
-                var_dump([
-                    'url' => $url,
-                    'slugEncoded' => $slugEncoded,
-                    'titleEncoded' => $titleEncoded
-                ]);
-
                 $url = str_replace($titleEncoded, $slugEncoded, $url);
             }
         } catch (DBQueryError $ex) {
