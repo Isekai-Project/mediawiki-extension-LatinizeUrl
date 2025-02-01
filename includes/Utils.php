@@ -516,7 +516,9 @@ class Utils {
         $str = implode('-', $strBuilder);
         $str = preg_replace('/-([\x20-\x2f\x3a-\x40\x5b-\x60\x7a-\x7f])-/', '$1', $str);
         $str = str_replace([' ', '&', '?', '!', '#', '%'], '-', $str);
+        $str = str_replace(['-)'], [')'], $str);
         $str = preg_replace('/-+/', '-', $str);
+        $str = preg_replace('/(^-|-$)/', '', $str);
         return $str;
     }
 }
