@@ -440,7 +440,7 @@ class Utils {
                 for ($i = $titlePathLen - 2; $i >= 0; $i--) {
                     $titleSubPath = implode('/', array_slice($titlePathList, 0, $i + 1));
                     $baseTitle = Title::newFromText($titleSubPath, $title->getNamespace());
-                    $baseSlug = self::getSlugUrlByTitle($baseTitle);
+                    $baseSlug = self::getSlugUrlByTitleWithoutId($baseTitle);
                     if ($baseSlug) {
                         $unparsed = implode('/', array_slice($titlePathList, $i + 1));
                         break;
