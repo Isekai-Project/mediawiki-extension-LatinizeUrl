@@ -74,10 +74,10 @@ class Hooks {
             
             if ($slugText !== $absoluteSlug) {
                 $newTitle = Title::newFromText($absoluteSlug, $title->getNamespace());
-            }
 
-            if ($newTitle) {
-                $title = $newTitle;
+                if ($newTitle) {
+                    $title = $newTitle;
+                }
             }
         }
     }
