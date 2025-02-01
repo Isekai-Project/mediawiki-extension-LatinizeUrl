@@ -15,6 +15,7 @@ class Utils {
     private static $dbw = null;
     private static $cache = null;
     private const PAGE_ID_SEPARATOR = '-';
+    private const OLD_PAGE_ID_SEPARATORS = ['~'];
 
     public static function initMasterDb() {
         if (!self::$dbw) {
@@ -87,7 +88,9 @@ class Utils {
 
         $wikiPageFactory = MediaWikiServices::getInstance()->getWikiPageFactory();
         // 新版在URL中加了pageId
-        if (preg_match('/^(\d+?)' + self::PAGE_ID_SEPARATOR + '/', $url, $matches)) {
+        $pageIdSeparator = array_merge(self::OLD_PAGE_ID_SEPARATORS, [self::PAGE_ID_SEPARATOR]);
+        $pageIdSeparator = implode('|', array_map('preg_quote', $pageIdSeparator));
+        if (preg_match('/^(\d+?)(' . $pageIdSeparator . ')/', $url, $matches)) {
             $pageId = intval($matches[1]);
 
             $wikiPage = $wikiPageFactory->newFromID($pageId);
