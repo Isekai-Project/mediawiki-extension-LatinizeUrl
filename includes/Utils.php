@@ -344,6 +344,7 @@ class Utils {
         self::$cache->delete(self::$cache->makeKey('slugurl2title', $oldUrl));
         self::$cache->delete(self::$cache->makeKey('title2slug', $title));
         self::$cache->delete(self::$cache->makeKey('title2slugurl', $title));
+        self::$cache->delete(self::$cache->makeKey('title2slugurlorig', $title));
         return $url;
     }
 
@@ -371,6 +372,7 @@ class Utils {
             self::$cache->delete(self::$cache->makeKey('slugurl2title', $oldData->url));
             self::$cache->delete(self::$cache->makeKey('title2slug', $title));
             self::$cache->delete(self::$cache->makeKey('title2slugurl', $title));
+            self::$cache->delete(self::$cache->makeKey('title2slugurlorig', $title));
             return true;
         } else {
             return true;
@@ -395,8 +397,8 @@ class Utils {
     }
 
     public static function encodeUriComponent($str) {
-        $entities = ['+', '%21', '%2A', '%27', '%28', '%29', '%3B', '%3A', '%40', '%26', '%3D', '%2B', '%24', '%2C', '%2F', '%3F', '%25', '%23', '%5B', '%5D'];
-        $replacements = ['_', '!', '*', "'", "(", ")", ";", ":", "@", "&", "=", "+", "$", ",", "/", "?", "%", "#", "[", "]"];
+        $entities = ['+', '%21', '%2A', '%27', '%28', '%29', '%3B', '%3A', '%40', '%3D', '%2B', '%24', '%2C', '%2F', '%3F', '%25', '%23', '%5B', '%5D'];
+        $replacements = ['_', '!', '*', "'", "(", ")", ";", ":", "@", "=", "+", "$", ",", "/", "?", "%", "#", "[", "]"];
         return str_replace($entities, $replacements, implode("/", array_map("urlencode", explode("/", $str))));
     }
 
@@ -513,6 +515,8 @@ class Utils {
         }
         $str = implode('-', $strBuilder);
         $str = preg_replace('/-([\x20-\x2f\x3a-\x40\x5b-\x60\x7a-\x7f])-/', '$1', $str);
+        $str = str_replace([' ', '&', '?', '!', '#', '%'], '-', $str);
+        $str = preg_replace('/-+/', '-', $str);
         return $str;
     }
 }

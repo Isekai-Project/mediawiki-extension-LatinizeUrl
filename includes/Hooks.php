@@ -57,23 +57,23 @@ class Hooks {
             if ($realTitle) {
                 $title = $realTitle;
                 $request->setVal('title', $title->getPrefixedDBkey());
+            }
+        }
 
-                if (
-                    $wgLatinizeUrlForceRedirect
-                    && !($request->getVal('action') && $request->getVal('action') != 'view')
-                    && !$request->getVal('veaction')
-                    && !defined('MW_API')
-                    && in_array($title->getNamespace(), self::$allowedNS)
-                ) { //把原标题页面重定向到拼音页面
-                    $absoluteSlug = Utils::getSlugUrlByTitle($title);
+        if (
+            $wgLatinizeUrlForceRedirect
+            && !($request->getVal('action') && $request->getVal('action') != 'view')
+            && !$request->getVal('veaction')
+            && !defined('MW_API')
+            && in_array($title->getNamespace(), self::$allowedNS)
+        ) { //把原标题页面重定向到拼音页面
+            $absoluteSlug = Utils::getSlugUrlByTitle($title);
 
-                    $slugText = str_replace(' ', '_', $slugText);
-                    $absoluteSlug = str_replace(' ', '_', $absoluteSlug);
+            $slugText = str_replace(' ', '_', $slugText);
+            $absoluteSlug = str_replace(' ', '_', $absoluteSlug);
 
-                    if ($slugText !== $absoluteSlug) {
-                        $title = Title::newFromText($absoluteSlug, $title->getNamespace());
-                    }
-                }
+            if ($slugText !== $absoluteSlug) {
+                $title = Title::newFromText($absoluteSlug, $title->getNamespace());
             }
         }
     }
@@ -92,6 +92,13 @@ class Hooks {
 
                 $slugEncoded = Utils::encodeUriComponent($slugTitle->getPrefixedText());
                 $titleEncoded = Utils::encodeUriComponent($title->getPrefixedText());
+
+                var_dump([
+                    'url' => $url,
+                    'slugEncoded' => $slugEncoded,
+                    'titleEncoded' => $titleEncoded
+                ]);
+
                 $url = str_replace($titleEncoded, $slugEncoded, $url);
             }
         } catch (DBQueryError $ex) {
