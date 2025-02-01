@@ -71,9 +71,13 @@ class Hooks {
 
             $slugText = str_replace(' ', '_', $slugText);
             $absoluteSlug = str_replace(' ', '_', $absoluteSlug);
-
+            
             if ($slugText !== $absoluteSlug) {
-                $title = Title::newFromText($absoluteSlug, $title->getNamespace());
+                $newTitle = Title::newFromText($absoluteSlug, $title->getNamespace());
+            }
+
+            if ($newTitle) {
+                $title = $newTitle;
             }
         }
     }
