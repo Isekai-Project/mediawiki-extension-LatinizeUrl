@@ -3,6 +3,7 @@
 namespace LatinizeUrl;
 
 use MediaWiki\Actions\ActionEntryPoint;
+use MediaWiki\Api\ApiBase;
 use MediaWiki\Linker\LinkTarget;
 use MediaWiki\Title\Title;
 use MediaWiki\SpecialPage\SpecialPage;
@@ -15,7 +16,6 @@ use Wikimedia\Rdbms\DBQueryError;
 use MediaWiki\Output\OutputPage;
 use MediaWiki\User\User;
 use MediaWiki\Request\WebRequest;
-use MediaWiki\Context\RequestContext;
 use MediaWiki\Installer\DatabaseUpdater;
 
 class Hooks {
@@ -27,12 +27,16 @@ class Hooks {
 
         $dbType = $updater->getDB()->getType();
         // For non-MySQL/MariaDB/SQLite DBMSes, use the appropriately named file
-        if ($dbType == 'mysql') {
-            $updater->addExtensionTable('url_slug', "{$dir}/mysql.sql");
-        } elseif ($dbType == 'sqlite') {
-            $updater->addExtensionTable('url_slug', "{$dir}/sqlite.sql");
-        } else {
-            throw new \Exception('Database type not currently supported');
+
+        if (in_array($dbType, ['mysql', 'sqlite'])) {
+            $updater->addExtensionTable('latinize_collection', "{$dir}/{$dbType}/latinize_collection.sql");
+            $updater->addExtensionTable('latinize_url_slug', "{$dir}/{$dbType}/latinize_url_slug.sql");
+
+            // if ($updater->tableExists('url_slug')) {
+            //     $prefix = $updater->getDB()->tablePrefix();
+            //     $updater->getDB()->query("INSERT INTO {$prefix}latinize_url_slug (title, url_slug, is_custom, latinized_words) SELECT title, slug, is_custom, latinize FROM {$prefix}url_slug");
+            //     $updater->getDB()->query("DROP TABLE {$prefix}url_slug");
+            // }
         }
 
         //更新文件patch
@@ -127,10 +131,10 @@ class Hooks {
         if ($flags & EDIT_NEW) {
             $title = $wikiPage->getTitle();
 
-            $parsedData = Utils::parseTitleToAscii($title, $title->getPageLanguage());
+            $parsedData = Utils::parseTitleToLatinize($title, $title->getPageLanguage());
 
             if ($parsedData) {
-                Utils::addTitleSlugMap($title->getText(), $parsedData['slug'], $parsedData['latinize']);
+                Utils::addTitleSlugMap($title->getText(), $parsedData['slug'], $parsedData['latinize'], false);
             }
         }
     }
@@ -141,14 +145,14 @@ class Hooks {
         }
         $title = MediaWikiServices::getInstance()->getTitleFactory()->newFromLinkTarget($new);
 
-        $parsedData = Utils::parseTitleToAscii($title, $title->getPageLanguage());
+        $parsedData = Utils::parseTitleToLatinize($title, $title->getPageLanguage());
 
         if ($parsedData) {
-            Utils::addTitleSlugMap($title->getText(), $parsedData['slug'], $parsedData['latinize']);
+            Utils::addTitleSlugMap($title->getText(), $parsedData['slug'], $parsedData['latinize'], false);
         }
     }
 
-    public static function onApiBeforeMain(\ApiBase &$processor) {
+    public static function onApiBeforeMain(ApiBase &$processor) {
         $request = $processor->getRequest();
         $titles = $request->getVal('titles');
         if ($titles) {
