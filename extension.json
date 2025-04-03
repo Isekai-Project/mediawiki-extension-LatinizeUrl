@@ -23,7 +23,8 @@
     "LatinizeUrl\\Utils": "includes/Utils.php",
     "LatinizeUrl\\LatinizeCollation": "includes/LatinizeCollation.php",
     "LatinizeUrl\\Patcher": "includes/Patcher.php",
-    "LatinizeUrl\\SpecialCustomUrl": "specials/SpecialCustomUrl.php"
+    "LatinizeUrl\\SpecialCustomUrl": "specials/SpecialCustomUrl.php",
+    "LatinizeUrl\\Maintenance\\MigrateOldUrlSlugTable": "maintenance/MigrateOldUrlSlugTable.php"
   },
   "Hooks": {
     "LoadExtensionSchemaUpdates": [
