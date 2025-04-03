@@ -18,11 +18,13 @@ use MediaWiki\User\User;
 use MediaWiki\Request\WebRequest;
 use MediaWiki\Installer\DatabaseUpdater;
 
+use LatinizeUrl\Maintenance\MigrateOldUrlSlugTable;
+
 class Hooks {
     public static $allowedNS = [NS_MAIN, NS_TALK];
 
     public static function onLoadExtensionSchemaUpdates(DatabaseUpdater $updater) {
-        //更新数据库
+        // 更新数据库
         $dir = dirname(__DIR__) . '/sql';
 
         $dbType = $updater->getDB()->getType();
@@ -32,11 +34,10 @@ class Hooks {
             $updater->addExtensionTable('latinize_collection', "{$dir}/{$dbType}/latinize_collection.sql");
             $updater->addExtensionTable('latinize_url_slug', "{$dir}/{$dbType}/latinize_url_slug.sql");
 
-            // if ($updater->tableExists('url_slug')) {
-            //     $prefix = $updater->getDB()->tablePrefix();
-            //     $updater->getDB()->query("INSERT INTO {$prefix}latinize_url_slug (title, url_slug, is_custom, latinized_words) SELECT title, slug, is_custom, latinize FROM {$prefix}url_slug");
-            //     $updater->getDB()->query("DROP TABLE {$prefix}url_slug");
-            // }
+            if ($updater->tableExists('url_slug')) {
+                // 合并url_slug表到latinize_url_slug表
+                $updater->addPostDatabaseUpdateMaintenance(MigrateOldUrlSlugTable::class);
+            }
         }
 
         //更新文件patch
@@ -47,7 +48,12 @@ class Hooks {
         $patcher->save();
     }
 
-    /* 将拼音映射转换为原标题 */
+    /**
+     * 自定义Hook：解析标题
+     * 将标题中的自定义URL还原为原本的标题
+     * @param Title $title 标题
+     * @param WebRequest $request 请求
+     */
     public static function onInitializeParseTitle(Title &$title, $request) {
         $service = MediaWikiServices::getInstance();
 
@@ -66,18 +72,19 @@ class Hooks {
 
         if (
             $wgLatinizeUrlForceRedirect
-            && !($request->getVal('action') && $request->getVal('action') != 'view')
-            && !$request->getVal('veaction')
-            && !defined('MW_API')
-            && in_array($title->getNamespace(), self::$allowedNS)
+            && !($request->getVal('action') && $request->getVal('action') != 'view') // 仅重定向View
+            && !$request->getVal('veaction') // 不重定向VisualEditor
+            && !defined('MW_API') // 不重定向API
+            && in_array($title->getNamespace(), self::$allowedNS) // Namespace在允许自定义URL范围内
         ) { //把原标题页面重定向到拼音页面
-            $absoluteSlug = Utils::getSlugUrlByTitle($title);
+            /** @var string 标准的Slug */
+            $canonicalSlug = Utils::getSlugUrlByTitle($title);
 
-            $slugText = str_replace(' ', '_', $slugText);
-            $absoluteSlug = str_replace(' ', '_', $absoluteSlug);
+            $slugText = str_replace('_', ' ', $slugText);
+            $canonicalSlug = str_replace('_', ' ', $canonicalSlug);
             
-            if ($slugText !== $absoluteSlug) {
-                $newTitle = Title::newFromText($absoluteSlug, $title->getNamespace());
+            if ($slugText !== $canonicalSlug) {
+                $newTitle = Title::newFromText($canonicalSlug, $title->getNamespace());
 
                 if ($newTitle) {
                     $title = $newTitle;
@@ -89,7 +96,13 @@ class Hooks {
     public static function onBeforeInitialize(Title &$title, $unused, OutputPage $output, User $user, WebRequest $request, ActionEntryPoint $entryPoint) {
     }
 
-    public static function onGetArticleUrl(Title &$title, &$url, $query) {
+    /**
+     * 解析页面URL时，替换为自定义URL
+     * @param Title $title
+     * @param string $url
+     * @param array $query
+     */
+    public static function onGetLocalUrl(Title &$title, &$url, $query) {
         try {
             if (in_array($title->getNamespace(), self::$allowedNS) && Utils::titleSlugExists($title)) {
                 $slugText = Utils::getSlugUrlByTitle($title);
@@ -107,6 +120,9 @@ class Hooks {
         }
     }
 
+    /**
+     * 页面删除后，删除自定义URL
+     */
     public static function onPageDeleteComplete(ProperPageIdentity $page, Authority $deleter, $reason, $pageID, $deletedRev, $logEntry, $archivedRevisionCount) {
         $title = TitleValue::newFromPage($page);
         if (in_array($title->getNamespace(), self::$allowedNS)) { //不是普通页面就跳过
@@ -116,6 +132,7 @@ class Hooks {
 
 
     /**
+     * 新建页面时，自动添加拉丁化URL
      * @param \WikiPage $wikiPage
      * @param \MediaWiki\User\UserIdentity $user
      * @param string $summary
@@ -134,11 +151,14 @@ class Hooks {
             $parsedData = Utils::parseTitleToLatinize($title, $title->getPageLanguage());
 
             if ($parsedData) {
-                Utils::addTitleSlugMap($title->getText(), $parsedData['slug'], $parsedData['latinize'], false);
+                Utils::addTitleSlugMap($title->getText(), $parsedData['url_slug'], $parsedData['latinize'], false);
             }
         }
     }
 
+    /**
+     * 页面移动后，添加拉丁化URL
+     */
     public static function onPageMoveComplete(LinkTarget $old, LinkTarget $new, UserIdentity $userIdentity, $pageid, $redirid, $reason, $revision) {
         if (!in_array($new->getNamespace(), self::$allowedNS)) { //不是普通页面就跳过
             return;
@@ -148,10 +168,13 @@ class Hooks {
         $parsedData = Utils::parseTitleToLatinize($title, $title->getPageLanguage());
 
         if ($parsedData) {
-            Utils::addTitleSlugMap($title->getText(), $parsedData['slug'], $parsedData['latinize'], false);
+            Utils::addTitleSlugMap($title->getText(), $parsedData['url_slug'], $parsedData['latinize'], false);
         }
     }
 
+    /**
+     * 在API请求之前，处理标题参数
+     */
     public static function onApiBeforeMain(ApiBase &$processor) {
         $request = $processor->getRequest();
         $titles = $request->getVal('titles');
@@ -168,6 +191,10 @@ class Hooks {
         }
     }
 
+    /**
+     * 皮肤工具栏添加自定义URL链接
+     * 添加“自定义URL”工具
+     */
     public static function addToolboxLink(\Skin $skin, array &$links) {
         $service = MediaWikiServices::getInstance();
         $user = $skin->getContext()->getUser();
@@ -191,6 +218,9 @@ class Hooks {
         }
     }
 
+    /**
+     * 添加拉丁化分类排序
+     */
     public static function onCollationFactory($collationName, &$collationObject) {
         if ($collationName == 'latinize') {
             $collationObject = new LatinizeCollation();

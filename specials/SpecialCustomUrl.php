@@ -22,6 +22,9 @@ class SpecialCustomUrl extends UnlistedSpecialPage {
 	 */
 	protected $title;
 
+	/** @var int */
+	protected $pageId = null;
+
 	/** @var string */
 	protected $slug;
 
@@ -66,6 +69,14 @@ class SpecialCustomUrl extends UnlistedSpecialPage {
 		$this->title = $title;
 		$this->getSkin()->setRelevantTitle($this->title);
 
+		if (!$this->title->isMainPage()) { // 首页不显示PageId
+			$wikiPageFactory = $service->getWikiPageFactory();
+			$wikiPage = $wikiPageFactory->newFromTitle($title);
+			if ($wikiPage) {
+				$this->pageId = $wikiPage->getId();
+			}
+		}
+
 		$user = $this->getUser();
 
 		if (!$title) {
@@ -107,6 +118,7 @@ class SpecialCustomUrl extends UnlistedSpecialPage {
 		$csrfTokenObj = $request->getSession()->getToken();
 
 		$out->setPageTitle($this->msg('latinizeurl-customurl')->text());
+		$out->addBacklinkSubtitle($this->title);
 		$out->addModuleStyles([
 			'mediawiki.special',
 			'mediawiki.interface.helpers.styles'
@@ -192,7 +204,7 @@ class SpecialCustomUrl extends UnlistedSpecialPage {
 	}
 
 	private function getCurrentSlug() {
-		$slug = Utils::getSlugUrlByTitleWithoutId($this->title);
+		$slug = Utils::getSlugByTitle($this->title);
 		if ($slug) {
 			return $slug;
 		} else {
@@ -215,8 +227,8 @@ class SpecialCustomUrl extends UnlistedSpecialPage {
 
 		$latinize = [];
 		if (empty($slug)) { //自动生成
-			$parsedData = Utils::parseTitleToAscii($this->title, $this->title->getPageLanguage());
-			$slug = $parsedData['slug'];
+			$parsedData = Utils::parseTitleToLatinize($this->title, $this->title->getPageLanguage());
+			$slug = $parsedData['url_slug'];
 			$latinize = $parsedData['latinize'];
 			$custom = 0;
 		} else {
@@ -225,11 +237,7 @@ class SpecialCustomUrl extends UnlistedSpecialPage {
 			$custom = 1;
 		}
 
-		if (Utils::titleSlugExists($this->title)) {
-			$realSlug = Utils::updateTitleSlugMap($this->title->getText(), $slug, $latinize, $custom);
-		} else {
-			$realSlug = Utils::addTitleSlugMap($this->title->getText(), $slug, $latinize, $custom);
-		}
+		Utils::replaceTitleSlugMap($this->title->getText(), $slug, $latinize, $custom);
 
 		if ($renameSubpages) {
 			//更新子页面的slug
@@ -239,12 +247,12 @@ class SpecialCustomUrl extends UnlistedSpecialPage {
 			foreach ($subpages as $subpage) {
 				$originSubpaeSlug = Utils::getSlugByTitle($subpage);
 				if (strpos($originSubpaeSlug, $originSlug) === 0) {
-					$newSubpageSlug = $realSlug . substr($originSubpaeSlug, $originSlugLen);
+					$newSubpageSlug = $slug . substr($originSubpaeSlug, $originSlugLen);
 					Utils::updateTitleSlugMap($subpage->getText(), $newSubpageSlug, [$newSubpageSlug], 1);
 				}
 			}
 		}
-		$this->slug = $realSlug;
+		$this->slug = $slug;
 
 		$this->onSuccess();
 		return true;
@@ -317,7 +325,7 @@ class SpecialCustomUrl extends UnlistedSpecialPage {
 
 	public function onSuccess() {
 		$out = $this->getOutput();
-		$out->setPageTitle($this->msg('latinizeurl-customurl'));
+		$out->setPageTitle($this->msg('latinizeurl-customurl')->text());
 		$out->addWikiMsg('customurl-set-success', $this->title->getText(), str_replace(' ', '_', $this->slug));
 	}
 

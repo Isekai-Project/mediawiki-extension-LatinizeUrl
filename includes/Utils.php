@@ -65,11 +65,9 @@ class Utils {
         $titleText = self::getTitleText($title);
         if (!$titleText) return false;
 
-        $cond = [
+        $res = self::$dbr->selectField('latinize_url_slug', 'COUNT(*)', [
             'title' => $titleText,
-        ];
-
-        $res = self::$dbr->selectField('latinize_url_slug', 'COUNT(*)', $cond, __METHOD__);
+        ], __METHOD__);
         return intval($res) > 0;
     }
 
@@ -142,7 +140,7 @@ class Utils {
                 self::initReplicaDb();
 
                 $res = self::$dbr->select('latinize_url_slug', ['title'], [
-                    'slug' => $slug,
+                    'url_slug' => $slug,
                 ], __METHOD__, [
                     'LIMIT' => 1,
                 ]);
@@ -169,14 +167,14 @@ class Utils {
             self::$cache->makeKey('title2slug', $title),
             self::$cache::TTL_MINUTE * 10,
             function () use ($title) {
-                $res = self::$dbr->select('latinize_url_slug', ['slug'], [
+                $res = self::$dbr->select('latinize_url_slug', ['url_slug'], [
                     'title' => $title,
                 ], __METHOD__, [
                     'LIMIT' => 1,
                 ]);
                 if ($res->numRows() > 0) {
                     $data = $res->fetchRow();
-                    return $data['slug'];
+                    return $data['url_slug'];
                 } else {
                     return false;
                 }
@@ -257,7 +255,7 @@ class Utils {
 
         self::$dbw->insert('latinize_url_slug', array(
             'title' => $title,
-            'slug' => $slug,
+            'url_slug' => $slug,
             'is_custom' => $isCustom ? 1 : 0,
             'latinized_words' => json_encode($latinize),
         ), __METHOD__);
@@ -267,35 +265,38 @@ class Utils {
      * 更新Title的Slug信息
      */
     public static function updateTitleSlugMap($title, $slug, $latinize = [], $isCustom = false) {
+        $title = self::getTitleText($title);
+
         if (!self::titleSlugExists($title)) {
             throw new Exception("Title slug map not exists: " . $title);
         }
         self::initMasterDb();
         self::initReplicaDb();
 
-        $res = self::$dbr->selectRow('url_slug', ['id', 'slug'], [
+        $res = self::$dbr->selectRow('latinize_url_slug', ['id', 'url_slug'], [
             'title' => $title,
         ], __METHOD__);
 
         $mapId = intval($res->id);
-        $oldSlug = $res->slug;
+        $oldSlug = $res->url_slug;
 
         if ($oldSlug == $slug) return; // Slug未变化
 
         $data = [
-            'slug' => $slug,
+            'url_slug' => $slug,
             'is_custom' => $isCustom ? 1 : 0,
         ];
         if (!empty($latinize)) {
             $data['latinized_words'] = json_encode($latinize);
         }
 
-        self::$dbw->update('url_slug', $data, [
+        self::$dbw->update('latinize_url_slug', $data, [
             'id' => $mapId,
         ], __METHOD__);
 
         self::$cache->delete(self::$cache->makeKey('slug2title', $oldSlug));
         self::$cache->delete(self::$cache->makeKey('title2slug', $title));
+        self::$cache->delete(self::$cache->makeKey('title2slugurl', $title));
     }
 
     /**
@@ -313,23 +314,52 @@ class Utils {
      * 移除Title的Slug信息
      */
     public static function removeTitleSlugMap($title) {
+        $title = self::getTitleText($title);
+        
         self::initMasterDb();
 
         if (self::titleSlugExists($title)) {
-            $oldData = self::$dbr->selectRow('latinize_url_slug', ['slug'], [
+            $oldData = self::$dbr->selectRow('latinize_url_slug', ['url_slug'], [
                 'title' => $title,
             ], __METHOD__);
 
-            self::$dbw->delete('url_slug', [
+            self::$dbw->delete('latinize_url_slug', [
                 'title' => $title,
             ]);
 
-            self::$cache->delete(self::$cache->makeKey('slug2title', $oldData->slug));
+            self::$cache->delete(self::$cache->makeKey('slug2title', $oldData->url_slug));
             self::$cache->delete(self::$cache->makeKey('title2slug', $title));
+            self::$cache->delete(self::$cache->makeKey('title2slugurl', $title));
             return true;
         } else {
             return true;
         }
+    }
+
+    public static function getLatinizeSortKey($string) {
+        self::initReplicaDb();
+
+        $res = self::$dbr->select('latinize_collection', ['sort_key'], [
+            'title' => $string,
+        ], __METHOD__, [
+            'LIMIT' => 1,
+        ]);
+
+        if ($res->numRows() > 0) {
+            $data = $res->fetchRow();
+            return $data['sort_key'];
+        } else {
+            return false;
+        }
+    }
+
+    public static function setLatinizeSortKey($string, $sortKey) {
+        self::initMasterDb();
+
+        self::$dbw->replace('latinize_collection', ['title'], [
+            'title' => $string,
+            'sort_key' => $sortKey,
+        ], __METHOD__);
     }
 
     /**
@@ -411,12 +441,12 @@ class Utils {
                     $parsedSlug = self::wordListToUrl($parsed);
                     if ($baseSlug) {
                         return [
-                            'slug' => $baseSlug . '/' . $parsedSlug,
+                            'url_slug' => $baseSlug . '/' . $parsedSlug,
                             'latinize' => array_merge([$baseSlug, '/'], $parsed),
                         ];
                     } else {
                         return [
-                            'slug' => $parsedSlug,
+                            'url_slug' => $parsedSlug,
                             'latinize' => $parsed,
                         ];
                     }
@@ -428,7 +458,7 @@ class Utils {
                 if ($parsed) {
                     $parsedSlug = self::wordListToUrl($parsed);
                     return [
-                        'slug' => $parsedSlug,
+                        'url_slug' => $parsedSlug,
                         'latinize' => $parsed,
                     ];
                 } else {

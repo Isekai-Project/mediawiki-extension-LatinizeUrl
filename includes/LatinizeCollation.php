@@ -13,15 +13,9 @@ class LatinizeCollation extends Collation {
     }
 
     private function getLatinize($string) {
-        return $this->cache->getWithSetCallback(
-            $this->cache->makeKey('latinizeConvert', $string),
-            $this->cache::TTL_MINUTE * 10,
-            function () use ($string) {
-                $convertor = Utils::getConvertor();
-                $latinize = $convertor->parse($string);
-                return Utils::wordListToUrl($latinize);
-            }
-        );
+        $convertor = Utils::getConvertor();
+        $latinize = $convertor->parse($string);
+        return Utils::wordListToUrl($latinize);
     }
 
     public function getSortKey($string) {
@@ -29,18 +23,25 @@ class LatinizeCollation extends Collation {
             return $string;
         }
 
-        $slug = Utils::getSlugByTitle($string);
-        if ($slug) {
-            return ucfirst($slug);
-        } else {
-            $latinize = $this->getLatinize($string);
+        return $this->cache->getWithSetCallback(
+            $this->cache->makeKey('latinizeSortKey', $string),
+            $this->cache::TTL_MINUTE * 10,
+            function () use ($string) {
+                $sortKey = Utils::getLatinizeSortKey($string);
+                if ($sortKey) {
+                    return ucfirst($sortKey);
+                } else {
+                    $sortKey = $this->getLatinize($string);
 
-            if ($latinize) {
-                return $latinize;
+                    if ($sortKey) {
+                        Utils::setLatinizeSortKey($string, $sortKey);
+                        return $sortKey;
+                    }
+
+                    return ucfirst($string);
+                }
             }
-
-            return ucfirst($slug);
-        }
+        );
     }
 
     public function getFirstLetter($string) {
@@ -48,17 +49,8 @@ class LatinizeCollation extends Collation {
             return mb_substr(0, 1, $string, 'UTF-8');
         }
 
-        $slug = Utils::getSlugByTitle($string);
-        if ($slug) {
-            return strtoupper($slug[0]);
-        } else {
-            $latinize = $this->getLatinize($string);
+        $sortKey = $this->getSortKey($string);
 
-            if ($latinize) {
-                return strtoupper(mb_substr($latinize, 0, 1, 'UTF-8'));
-            }
-        }
-
-        return mb_substr(0, 1, $string, 'UTF-8');
+        return strtoupper(mb_substr($sortKey, 0, 1, 'UTF-8'));
     }
 }
