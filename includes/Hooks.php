@@ -62,7 +62,7 @@ class Hooks {
 
         $slugText = $title->getText();
 
-        if (in_array($title->getNamespace(), self::$allowedNS)) {
+        if ($title->isLocal() && in_array($title->getNamespace(), self::$allowedNS)) {
             $realTitle = Utils::getTitleBySlugUrl($slugText, $title->getNamespace());
             if ($realTitle) {
                 $title = $realTitle;
@@ -76,6 +76,8 @@ class Hooks {
             && !$request->getVal('veaction') // 不重定向VisualEditor
             && !defined('MW_API') // 不重定向API
             && in_array($title->getNamespace(), self::$allowedNS) // Namespace在允许自定义URL范围内
+			&& !$request->wasPosted()
+			&& count( $request->getValueNames(['action', 'title'])) == 0
         ) { //把原标题页面重定向到拼音页面
             /** @var string 标准的Slug */
             $canonicalSlug = Utils::getSlugUrlByTitle($title);
@@ -104,6 +106,10 @@ class Hooks {
      */
     public static function onGetLocalUrl(Title &$title, &$url, $query) {
         try {
+            if ($title->wasLocalInterwiki()) {
+                $title = Title::newFromText($title->getText(), $title->getNamespace());
+            }
+
             if (in_array($title->getNamespace(), self::$allowedNS) && Utils::titleSlugExists($title)) {
                 $slugText = Utils::getSlugUrlByTitle($title);
                 if (!$slugText) return;
