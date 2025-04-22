@@ -106,8 +106,8 @@ class Hooks {
      */
     public static function onGetLocalUrl(Title &$title, &$url, $query) {
         try {
-            if ($title->wasLocalInterwiki()) {
-                $title = Title::newFromText($title->getText(), $title->getNamespace());
+            if ($title->getInterwiki() !== '') {
+                return;
             }
 
             if (in_array($title->getNamespace(), self::$allowedNS) && Utils::titleSlugExists($title)) {
