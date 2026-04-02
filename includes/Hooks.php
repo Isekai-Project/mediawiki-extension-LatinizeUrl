@@ -132,7 +132,7 @@ class Hooks {
     public static function onPageDeleteComplete(ProperPageIdentity $page, Authority $deleter, $reason, $pageID, $deletedRev, $logEntry, $archivedRevisionCount) {
         $title = TitleValue::newFromPage($page);
         if (in_array($title->getNamespace(), self::$allowedNS)) { //不是普通页面就跳过
-            Utils::removeTitleSlugMap($title->getText());
+            Utils::removeTitleSlugMap($title);
         }
     }
 
@@ -157,7 +157,7 @@ class Hooks {
             $parsedData = Utils::parseTitleToLatinize($title, $title->getPageLanguage());
 
             if ($parsedData) {
-                Utils::addTitleSlugMap($title->getText(), $parsedData['url_slug'], $parsedData['latinize'], false);
+                Utils::addTitleSlugMap($title, null, $parsedData['url_slug'], $parsedData['latinize'], false);
             }
         }
     }
@@ -174,7 +174,7 @@ class Hooks {
         $parsedData = Utils::parseTitleToLatinize($title, $title->getPageLanguage());
 
         if ($parsedData) {
-            Utils::addTitleSlugMap($title->getText(), $parsedData['url_slug'], $parsedData['latinize'], false);
+            Utils::addTitleSlugMap($title, null, $parsedData['url_slug'], $parsedData['latinize'], false);
         }
     }
 

@@ -10,6 +10,16 @@ use MediaWiki\MediaWikiServices;
 use StubUserLang;
 use MediaWiki\Registration\ExtensionRegistry;
 
+class BaseTitleInfo {
+    public string $title;
+    public int $namespace;
+
+    public function __construct(string $title, int $namespace) {
+        $this->title = $title;
+        $this->namespace = $namespace;
+    }
+}
+
 class Utils {
     private static $dbr = null;
     private static $dbw = null;
@@ -40,15 +50,15 @@ class Utils {
     /**
      * 获取标题文本
      * @param string|Title $title
-     * @return string|false
+     * @param int|null $namespace
+     * @return BaseTitleInfo|false
      */
-    public static function getTitleText($title) {
+    public static function getTitleInfo($title, $namespace = null) {
         if (is_string($title)) {
-            return $title;
-        } elseif ($title instanceof Title) {
-            return $title->getText();
-        } elseif (is_callable([$title, 'getText'])) {
-            return $title->getText();
+            return new BaseTitleInfo($title, $namespace ?? NS_MAIN);
+        } elseif ($title instanceof Title ||
+            (is_callable([$title, 'getText']) && is_callable([$title, 'getNamespace']))) {
+            return new BaseTitleInfo($title->getText(), $namespace ?? $title->getNamespace());
         } else {
             return false;
         }
@@ -57,16 +67,21 @@ class Utils {
     /**
      * 检测当前标题是否已经存在Slug
      * @param string|Title $title
+     * @param int|null $namespace
      * @return bool
      */
-    public static function titleSlugExists($title) {
+    public static function titleSlugExists($title, $namespace = null) {
         self::initReplicaDb();
 
-        $titleText = self::getTitleText($title);
-        if (!$titleText) return false;
+        if ($title instanceof Title) {
+            $namespace = $title->getNamespace();
+        }
+        $titleInfo = self::getTitleInfo($title, $namespace);
+        if (!$titleInfo) return false;
 
         $res = self::$dbr->selectField('latinize_url_slug', 'COUNT(*)', [
-            'title' => $titleText,
+            'title' => $titleInfo->title,
+            'namespace' => $titleInfo->namespace,
         ], __METHOD__);
         return intval($res) > 0;
     }
@@ -74,16 +89,18 @@ class Utils {
     /**
      * 通过Slug获取标题
      * @param string|Title $slug
-     * @param int $namespace
+     * @param int|null $namespace
      * @return Title|bool
      */
-    public static function getTitleBySlug($slug, $namespace = NS_MAIN) {
+    public static function getTitleBySlug($slug, $namespace = null) {
         if ($slug instanceof Title) {
-            $namespace = $slug->getNamespace();
+            $namespace = $namespace ?? $slug->getNamespace();
             $slug = $slug->getText();
+        } else {
+            $namespace = $namespace ?? NS_MAIN;
         }
 
-        $titleText = self::getTitleTextBySlug($slug);
+        $titleText = self::getTitleTextBySlug($slug, $namespace);
         if ($titleText) {
             return Title::newFromText($titleText, $namespace);
         } else {
@@ -93,13 +110,15 @@ class Utils {
 
     /**
      * 从Slug URL中获取标题
-     * @param Title|string $url
-     * @param int $namespace
+     * @param Title|string $slugUrl
+     * @param int|null $namespace
      */
-    public static function getTitleBySlugUrl($url, $namespace = NS_MAIN) {
-        if ($url instanceof Title) {
-            $namespace = $url->getNamespace();
-            $url = $url->getText();
+    public static function getTitleBySlugUrl($slugUrl, $namespace = null) {
+        if ($slugUrl instanceof Title) {
+            $namespace = $namespace ?? $slugUrl->getNamespace();
+            $slugUrl = $slugUrl->getText();
+        } else {
+            $namespace = $namespace ?? NS_MAIN;
         }
 
         $wikiPageFactory = MediaWikiServices::getInstance()->getWikiPageFactory();
@@ -107,7 +126,7 @@ class Utils {
         // 新版在URL中加了pageId，先尝试根据pageId获取标题
         $pageIdSeparator = array_merge(self::OLD_PAGE_ID_SEPARATORS, [self::PAGE_ID_SEPARATOR]);
         $pageIdSeparator = implode('|', array_map('preg_quote', $pageIdSeparator));
-        if (preg_match('/^(\d+?)(' . $pageIdSeparator . ')/', $url, $matches)) {
+        if (preg_match('/^(\d+?)(' . $pageIdSeparator . ')/', $slugUrl, $matches)) {
             $pageId = intval($matches[1]);
 
             $wikiPage = $wikiPageFactory->newFromID($pageId);
@@ -117,7 +136,7 @@ class Utils {
         }
 
         // 处理旧版URL
-        $titleText = self::getTitleTextBySlug($url);
+        $titleText = self::getTitleTextBySlug($slugUrl, $namespace);
         if ($titleText) {
             return Title::newFromText($titleText, $namespace);
         } else {
@@ -128,19 +147,21 @@ class Utils {
     /**
      * 通过Slug获取标题文本
      * @param string $slug
+     * @param int $namespace
      * @return string|false
      */
-    public static function getTitleTextBySlug($slug) {
+    public static function getTitleTextBySlug($slug, $namespace = NS_MAIN) {
         self::initCache();
 
         return self::$cache->getWithSetCallback(
-            self::$cache->makeKey('slug2title', $slug),
+            self::$cache->makeKey('slug2title', $slug, $namespace),
             self::$cache::TTL_MINUTE * 10,
-            function () use ($slug) {
+            function () use ($slug, $namespace) {
                 self::initReplicaDb();
 
                 $res = self::$dbr->select('latinize_url_slug', ['title'], [
                     'url_slug' => $slug,
+                    'namespace' => $namespace,
                 ], __METHOD__, [
                     'LIMIT' => 1,
                 ]);
@@ -156,19 +177,23 @@ class Utils {
 
     /**
      * 通过Title获取对应的Slug
+     * @param string|Title $title
+     * @param int|null $namespace
      */
-    public static function getSlugByTitle($title) {
-        $title = self::getTitleText($title);
+    public static function getSlugByTitle($title, $namespace = null) {
+        $titleInfo = self::getTitleInfo($title, $namespace);
+        if (!$titleInfo) return false;
 
         self::initCache();
         self::initReplicaDb();
 
         return self::$cache->getWithSetCallback(
-            self::$cache->makeKey('title2slug', $title),
+            self::$cache->makeKey('title2slug', $titleInfo->title, $titleInfo->namespace),
             self::$cache::TTL_MINUTE * 10,
-            function () use ($title) {
+            function () use ($titleInfo) {
                 $res = self::$dbr->select('latinize_url_slug', ['url_slug'], [
-                    'title' => $title,
+                    'title' => $titleInfo->title,
+                    'namespace' => $titleInfo->namespace,
                 ], __METHOD__, [
                     'LIMIT' => 1,
                 ]);
@@ -184,10 +209,12 @@ class Utils {
 
     /**
      * 通过Title获取带有页面ID的完整Slug URL
+     * @param string|Title $title
+     * @param int $namespace
      */
-    public static function getSlugUrlByTitle($title) {
+    public static function getSlugUrlByTitle($title, $namespace = NS_MAIN) {
         if (is_string($title)) {
-            $title = Title::newFromText($title);
+            $title = Title::newFromText($title, $namespace);
         }
 
         if (!$title) return false;
@@ -195,7 +222,7 @@ class Utils {
         self::initCache();
 
         return self::$cache->getWithSetCallback(
-            self::$cache->makeKey('title2slugurl', $title->getText()),
+            self::$cache->makeKey('title2slugurl', $title->getText(), $title->getNamespace()),
             self::$cache::TTL_MINUTE * 10,
             function () use ($title) {
                 $slugUrl = self::getSlugByTitle($title);
@@ -220,18 +247,18 @@ class Utils {
     /**
      * 通过Title获取对应的Slug详情
      * @param string|Title $title
+     * @param int|null $namespace
      * @return array|false
      */
-    public static function getSlugDataByTitle($title) {
-        if ($title instanceof Title) {
-            $title = $title->getText();
-        }
+    public static function getSlugDataByTitle($title, $namespace = null) {
+        $titleInfo = self::getTitleInfo($title, $namespace);
+        if (!$titleInfo) return false;
 
-        self::initCache();
         self::initReplicaDb();
 
         $res = self::$dbr->select('latinize_url_slug', '*', [
-            'title' => $title,
+            'title' => $titleInfo->title,
+            'namespace' => $titleInfo->namespace,
         ], __METHOD__, [
             'LIMIT' => 1,
         ]);
@@ -245,42 +272,62 @@ class Utils {
 
     /**
      * 添加Title的Slug信息
+     * @param string|Title $title
+     * @param int|null $namespace
+     * @param string $slug
+     * @param array $latinize
+     * @param bool $isCustom
+     * @return bool
      */
-    public static function addTitleSlugMap($title, $slug, $latinize = [], $isCustom = false) {
-        if (self::titleSlugExists($title)) { // 已有Slug记录
-            wfLogWarning("[LatinizeUrl] Title slug map already exists: " . $title);
-            return;
+    public static function addTitleSlugMap($title, $namespace, $slug, $latinize = [], $isCustom = false) {
+        $titleInfo = self::getTitleInfo($title, $namespace);
+        if (!$titleInfo) return false;
+
+        if (self::titleSlugExists($titleInfo->title, $titleInfo->namespace)) { // 已有Slug记录
+            wfLogWarning("[LatinizeUrl] Title slug map already exists: " . $titleInfo->title);
+            return false;
         }
         self::initMasterDb();
 
         self::$dbw->insert('latinize_url_slug', array(
-            'title' => $title,
+            'title' => $titleInfo->title,
+            'namespace' => $titleInfo->namespace,
             'url_slug' => $slug,
             'is_custom' => $isCustom ? 1 : 0,
             'latinized_words' => json_encode($latinize),
         ), __METHOD__);
+        return true;
     }
 
     /**
      * 更新Title的Slug信息
+     * @param string|Title $title
+     * @param string|null $namespace
+     * @param string $slug
+     * @param array $latinize
+     * @param bool $isCustom
+     * @return bool
      */
-    public static function updateTitleSlugMap($title, $slug, $latinize = [], $isCustom = false) {
-        $title = self::getTitleText($title);
+    public static function updateTitleSlugMap($title, $namespace, $slug, $latinize = [], $isCustom = false) {
+        $titleInfo = self::getTitleInfo($title, $namespace);
+        if (!$titleInfo) return false;
 
-        if (!self::titleSlugExists($title)) {
-            throw new Exception("Title slug map not exists: " . $title);
+        if (!self::titleSlugExists($titleInfo->title, $titleInfo->namespace)) {
+            throw new Exception("Title slug map not exists: " . $titleInfo->title);
         }
         self::initMasterDb();
         self::initReplicaDb();
+        self::initCache();
 
         $res = self::$dbr->selectRow('latinize_url_slug', ['id', 'url_slug'], [
-            'title' => $title,
+            'title' => $titleInfo->title,
+            'namespace' => $titleInfo->namespace,
         ], __METHOD__);
 
         $mapId = intval($res->id);
         $oldSlug = $res->url_slug;
 
-        if ($oldSlug == $slug) return; // Slug未变化
+        if ($oldSlug == $slug) return false; // Slug未变化
 
         $data = [
             'url_slug' => $slug,
@@ -294,45 +341,60 @@ class Utils {
             'id' => $mapId,
         ], __METHOD__);
 
-        self::$cache->delete(self::$cache->makeKey('slug2title', $oldSlug));
-        self::$cache->delete(self::$cache->makeKey('title2slug', $title));
-        self::$cache->delete(self::$cache->makeKey('title2slugurl', $title));
+        self::$cache->delete(self::$cache->makeKey('slug2title', $oldSlug, $titleInfo->namespace));
+        self::$cache->delete(self::$cache->makeKey('title2slug', $titleInfo->title, $titleInfo->namespace));
+        self::$cache->delete(self::$cache->makeKey('title2slugurl', $titleInfo->title, $titleInfo->namespace));
+        return true;
     }
 
     /**
      * 添加或更新Title的Slug信息
+     * @param string|Title $title
+     * @param string|null $namespace
+     * @param string $slug
+     * @param array $latinize
+     * @param bool $isCustom
+     * @return bool
      */
-    public static function replaceTitleSlugMap($title, $slug, $latinize = [], $isCustom = false) {
-        if (self::titleSlugExists($title)) {
-            self::updateTitleSlugMap($title, $slug, $latinize, $isCustom);
+    public static function replaceTitleSlugMap($title, $namespace, $slug, $latinize = [], $isCustom = false) {
+        if (self::titleSlugExists($title, $namespace)) {
+            return self::updateTitleSlugMap($title, $namespace, $slug, $latinize, $isCustom);
         } else {
-            self::addTitleSlugMap($title, $slug, $latinize, $isCustom);
+            return self::addTitleSlugMap($title, $namespace, $slug, $latinize, $isCustom);
         }
     }
 
     /**
      * 移除Title的Slug信息
+     * @param string|Title $title
+     * @param int|null $namespace
+     * @return bool
      */
-    public static function removeTitleSlugMap($title) {
-        $title = self::getTitleText($title);
+    public static function removeTitleSlugMap($title, $namespace = null) {
+        $titleInfo = self::getTitleInfo($title, $namespace);
+        if (!$titleInfo) return false;
         
         self::initMasterDb();
+        self::initReplicaDb();
+        self::initCache();
 
-        if (self::titleSlugExists($title)) {
+        if (self::titleSlugExists($titleInfo->title, $titleInfo->namespace)) {
             $oldData = self::$dbr->selectRow('latinize_url_slug', ['url_slug'], [
-                'title' => $title,
+                'title' => $titleInfo->title,
+                'namespace' => $titleInfo->namespace,
             ], __METHOD__);
 
             self::$dbw->delete('latinize_url_slug', [
-                'title' => $title,
+                'title' => $titleInfo->title,
+                'namespace' => $titleInfo->namespace,
             ]);
 
-            self::$cache->delete(self::$cache->makeKey('slug2title', $oldData->url_slug));
-            self::$cache->delete(self::$cache->makeKey('title2slug', $title));
-            self::$cache->delete(self::$cache->makeKey('title2slugurl', $title));
+            self::$cache->delete(self::$cache->makeKey('slug2title', $oldData->url_slug, $titleInfo->namespace));
+            self::$cache->delete(self::$cache->makeKey('title2slug', $titleInfo->title, $titleInfo->namespace));
+            self::$cache->delete(self::$cache->makeKey('title2slugurl', $titleInfo->title, $titleInfo->namespace));
             return true;
         } else {
-            return true;
+            return false;
         }
     }
 
@@ -421,6 +483,11 @@ class Utils {
     public static function parseTitleToLatinize(Title $title, Language $language) {
         try {
             $convertor = self::getConvertor($language);
+            if (!$convertor) {
+                wfLogWarning('No convertor found for language: ' . $language->getCode());
+                return false;
+            }
+
             if ($title->isSubpage()) {
                 // 处理子页面，按照页面拆分，拼接父页面已有的Slug
                 $titlePathList = explode('/', $title->getText());

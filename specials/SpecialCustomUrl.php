@@ -230,14 +230,14 @@ class SpecialCustomUrl extends UnlistedSpecialPage {
 			$parsedData = Utils::parseTitleToLatinize($this->title, $this->title->getPageLanguage());
 			$slug = $parsedData['url_slug'];
 			$latinize = $parsedData['latinize'];
-			$custom = 0;
+			$custom = false;
 		} else {
 			$slug = str_replace('_', ' ', $slug);
 			$latinize = [$slug];
-			$custom = 1;
+			$custom = true;
 		}
 
-		Utils::replaceTitleSlugMap($this->title->getText(), $slug, $latinize, $custom);
+		Utils::replaceTitleSlugMap($this->title, null, $slug, $latinize, $custom);
 
 		if ($renameSubpages) {
 			//更新子页面的slug
@@ -248,7 +248,7 @@ class SpecialCustomUrl extends UnlistedSpecialPage {
 				$originSubpaeSlug = Utils::getSlugByTitle($subpage);
 				if (strpos($originSubpaeSlug, $originSlug) === 0) {
 					$newSubpageSlug = $slug . substr($originSubpaeSlug, $originSlugLen);
-					Utils::updateTitleSlugMap($subpage->getText(), $newSubpageSlug, [$newSubpageSlug], 1);
+					Utils::updateTitleSlugMap($subpage, null, $newSubpageSlug, [$newSubpageSlug], true);
 				}
 			}
 		}

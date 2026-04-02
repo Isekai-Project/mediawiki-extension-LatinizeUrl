@@ -48,9 +48,17 @@ class UpdateLatinizeUrl extends Maintenance {
 
 		$res = $this->findRows( $dbw );
 		foreach($res as $one){
+			$namespace = $one->page_namespace;
 			$title = $one->page_title;
-			$isCustom = boolval(intval($dbw->selectField('url_slug', 'is_custom', ['title' => $title], __METHOD__)));
-            if(!$force && !$isCustom && Utils::titleSlugExists($title)) continue;
+			$isCustom = boolval(intval($dbw->selectField(
+				'url_slug',
+				'is_custom',
+				[
+					'namespace' => $namespace,
+					'title' => $title
+				],
+				__METHOD__)));
+            if(!$force && !$isCustom && Utils::titleSlugExists($title, $namespace)) continue;
 
             $pinyin = $convertor->parse($title);
             $slug = $convertor->parse($pinyin);
@@ -60,7 +68,7 @@ class UpdateLatinizeUrl extends Maintenance {
 				fwrite($outputFile, implode(' ', $pair) . "\r\n");
 			}
 
-            Utils::replaceTitleSlugMap($title, $slug, $pinyin);
+            Utils::replaceTitleSlugMap($title, $namespace, $slug, $pinyin, false);
 		}
 		
 		fclose($outputFile);
@@ -88,7 +96,7 @@ class UpdateLatinizeUrl extends Maintenance {
 	}
 
 	private function findRows( $dbi ) {
-		return $dbi->select('page', ['page_title'], [
+		return $dbi->select('page', ['page_namespace', 'page_title'], [
             'page_namespace' => NS_MAIN,
         ], __METHOD__, []);
 	}
