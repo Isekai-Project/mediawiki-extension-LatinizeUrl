@@ -171,23 +171,27 @@ class Hooks {
         if ($flags & EDIT_NEW) {
             $title = $wikiPage->getTitle();
 
-            $latinizeUrlService = MediaWikiServices::getInstance()->getService('LatinizeUrl.LatinizeUrlService');
-            $reason = 'conversion or mapping returned false';
-            try {
-                if ($latinizeUrlService->ensureAutomaticSlug($title)) {
-                    return;
-                }
-            } catch (\Throwable $e) {
-                $reason = get_class($e) . ': ' . $e->getMessage();
+            self::ensureAutomaticSlugWithRetry($title, $title->getId(), 'create');
+        }
+    }
+
+    private static function ensureAutomaticSlugWithRetry(Title $title, int $pageId, string $operation): void {
+        $services = MediaWikiServices::getInstance();
+        $reason = 'conversion or mapping returned false';
+        try {
+            if ($services->getService('LatinizeUrl.LatinizeUrlService')->ensureAutomaticSlug($title)) {
+                return;
             }
-            wfDebugLog('LatinizeUrl', 'Initial automatic slug failed: pageId=' . $title->getId() .
-                ' title=' . $title->getPrefixedDBkey() . ' error=' . $reason);
-            try {
-                Jobs\RetryJob::schedule($title->getId(), 1, max(0, (int)MediaWikiServices::getInstance()
-                    ->getMainConfig()->get('LatinizeUrlMaxRetries')));
-            } catch (\Throwable $e) {
-                // Immediate enqueue errors have already been logged by schedule().
-            }
+        } catch (\Throwable $e) {
+            $reason = get_class($e) . ': ' . $e->getMessage();
+        }
+        wfDebugLog('LatinizeUrl', 'Initial automatic slug failed: operation=' . $operation . ' pageId=' . $pageId .
+            ' title=' . $title->getPrefixedDBkey() . ' error=' . $reason);
+        try {
+            Jobs\RetryJob::schedule($pageId, 1, max(0, (int)$services
+                ->getMainConfig()->get('LatinizeUrlMaxRetries')));
+        } catch (\Throwable $e) {
+            // Immediate enqueue errors have already been logged by schedule().
         }
     }
 
@@ -200,15 +204,8 @@ class Hooks {
         }
 
         $service = MediaWikiServices::getInstance();
-        $latinizeUrlService = $service->getService('LatinizeUrl.LatinizeUrlService');
-
         $title = $service->getTitleFactory()->newFromLinkTarget($new);
-
-        $parsedData = $latinizeUrlService->parseTitleToLatinize($title, $title->getPageLanguage());
-
-        if ($parsedData) {
-            $latinizeUrlService->addTitleSlugMap($title, null, $parsedData['url_slug'], $parsedData['latinize'], false);
-        }
+        self::ensureAutomaticSlugWithRetry($title, (int)$pageid, 'move');
     }
 
     /**
