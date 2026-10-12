@@ -3,19 +3,20 @@
 namespace LatinizeUrl;
 
 use Collation;
-use MediaWiki\MediaWikiServices;
+use LatinizeUrl\Service\SortKeyStore;
+use LatinizeUrl\Service\TitleLatinizer;
+use Wikimedia\ObjectCache\WANObjectCache;
 
 class LatinizeCollation extends Collation {
     private $cache;
 
-    public function __construct() {
-        $this->cache = MediaWikiServices::getInstance()->getMainWANObjectCache();
+    public function __construct(private SortKeyStore $sortKeys, private TitleLatinizer $latinizer,
+        WANObjectCache $cache) {
+        $this->cache = $cache;
     }
 
     private function getLatinize($string) {
-        $convertor = Utils::getConvertor();
-        $latinize = $convertor->parse($string);
-        return Utils::wordListToUrl($latinize);
+        return $this->latinizer->forSortKey($string);
     }
 
     public function getSortKey($string) {
@@ -27,14 +28,14 @@ class LatinizeCollation extends Collation {
             $this->cache->makeKey('latinizeSortKey', $string),
             $this->cache::TTL_MINUTE * 10,
             function () use ($string) {
-                $sortKey = Utils::getLatinizeSortKey($string);
+                $sortKey = $this->sortKeys->get($string);
                 if ($sortKey) {
                     return ucfirst($sortKey);
                 } else {
                     $sortKey = $this->getLatinize($string);
 
                     if ($sortKey) {
-                        Utils::setLatinizeSortKey($string, $sortKey);
+                        $this->sortKeys->set($string, $sortKey);
                         return $sortKey;
                     }
 

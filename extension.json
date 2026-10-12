@@ -3,7 +3,7 @@
   "author": "Hyperzlib",
   "url": "https://github.com/Isekai-Project/mediawiki-extension-LatinizeUrl",
   "descriptionmsg": "latinizeurl-desc",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "license-name": "MIT",
   "type": "other",
   "requires": {
@@ -26,6 +26,12 @@
     "LatinizeUrl\\SpecialCustomUrl": "specials/SpecialCustomUrl.php",
     "LatinizeUrl\\Maintenance\\MigrateOldUrlSlugTable": "maintenance/MigrateOldUrlSlugTable.php"
   },
+  "AutoloadNamespaces": {
+    "LatinizeUrl\\": "includes"
+  },
+  "ServiceWiringFiles": [
+    "LatinizeUrl.services.php"
+  ],
   "Hooks": {
     "LoadExtensionSchemaUpdates": [
       "LatinizeUrl\\Hooks::onLoadExtensionSchemaUpdates"
@@ -61,6 +67,9 @@
       "LatinizeUrl\\Hooks::onApiBeforeMain"
     ]
   },
+  "JobClasses": {
+    "latinizeUrlRetry": "LatinizeUrl\\Jobs\\RetryJob"
+  },
   "SpecialPages": {
     "CustomUrl": "LatinizeUrl\\SpecialCustomUrl"
   },
@@ -74,6 +83,9 @@
     "remoteExtPath": "LatinizeUrl"
   },
   "config": {
+    "LatinizeUrlMaxRetries": {
+      "value": 3
+    },
     "LatinizeUrlConfig": {
       "value": {}
     },

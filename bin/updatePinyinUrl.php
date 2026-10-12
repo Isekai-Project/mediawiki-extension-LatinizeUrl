@@ -1,11 +1,7 @@
 <?php
 require_once dirname(__DIR__, 3) . '/maintenance/Maintenance.php';
-require_once dirname(__DIR__) . '/ChineseConvertor/ChineseConvertor.php';
-require_once dirname(__DIR__) . '/includes/Utils.php';
 
 use LatinizeUrl\ChineseConvertor;
-use LatinizeUrl\Hanzi2Pinyin;
-use LatinizeUrl\Utils;
 use MediaWiki\MediaWikiServices;
 
 /**
@@ -58,7 +54,7 @@ class UpdateLatinizeUrl extends Maintenance {
 					'title' => $title
 				],
 				__METHOD__)));
-            if(!$force && !$isCustom && Utils::titleSlugExists($title, $namespace)) continue;
+            if(!$force && !$isCustom && MediaWikiServices::getInstance()->getService('LatinizeUrl.LatinizeUrlService')->titleSlugExists($title, $namespace)) continue;
 
             $pinyin = $convertor->parse($title);
             $slug = $convertor->parse($pinyin);
@@ -68,7 +64,7 @@ class UpdateLatinizeUrl extends Maintenance {
 				fwrite($outputFile, implode(' ', $pair) . "\r\n");
 			}
 
-            Utils::replaceTitleSlugMap($title, $namespace, $slug, $pinyin, false);
+            MediaWikiServices::getInstance()->getService('LatinizeUrl.LatinizeUrlService')->replaceTitleSlugMap($title, $namespace, $slug, $pinyin, false);
 		}
 		
 		fclose($outputFile);

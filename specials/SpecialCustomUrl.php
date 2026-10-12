@@ -40,12 +40,16 @@ class SpecialCustomUrl extends UnlistedSpecialPage {
 	/** @var LinkBatchFactory */
 	private $linkBatchFactory;
 
+	/** @var LatinizeUrlService */
+	private $latinizeUrlService;
+
 	public function __construct() {
 		parent::__construct('CustomUrl', '', false);
 
 		$service = MediaWikiServices::getInstance();
 		$this->nsInfo = $service->getNamespaceInfo();
 		$this->linkBatchFactory = $service->getLinkBatchFactory();
+		$this->latinizeUrlService = MediaWikiServices::getInstance()->getService('LatinizeUrl.LatinizeUrlService');
 	}
 
 	public function doesWrites() {
@@ -204,7 +208,7 @@ class SpecialCustomUrl extends UnlistedSpecialPage {
 	}
 
 	private function getCurrentSlug() {
-		$slug = Utils::getSlugByTitle($this->title);
+		$slug = $this->latinizeUrlService->getSlugByTitle($this->title);
 		if ($slug) {
 			return $slug;
 		} else {
@@ -223,11 +227,11 @@ class SpecialCustomUrl extends UnlistedSpecialPage {
 		$slug = $request->getText('wpSlug');
 		$renameSubpages = $request->getBool('wpRenameSubpage');
 
-		$originSlug = Utils::getSlugByTitle($this->title);
+		$originSlug = $this->latinizeUrlService->getSlugByTitle($this->title);
 
 		$latinize = [];
 		if (empty($slug)) { //自动生成
-			$parsedData = Utils::parseTitleToLatinize($this->title, $this->title->getPageLanguage());
+			$parsedData = $this->latinizeUrlService->parseTitleToLatinize($this->title, $this->title->getPageLanguage());
 			$slug = $parsedData['url_slug'];
 			$latinize = $parsedData['latinize'];
 			$custom = false;
@@ -237,18 +241,18 @@ class SpecialCustomUrl extends UnlistedSpecialPage {
 			$custom = true;
 		}
 
-		Utils::replaceTitleSlugMap($this->title, null, $slug, $latinize, $custom);
+		$this->latinizeUrlService->replaceTitleSlugMap($this->title, null, $slug, $latinize, $custom);
 
 		if ($renameSubpages) {
-			//更新子页面的slug
+			// 更新子页面的slug
 			$subpages = $this->title->getSubpages();
 			$originSlugLen = strlen($originSlug);
 			/** @var \Title $subpage */
 			foreach ($subpages as $subpage) {
-				$originSubpaeSlug = Utils::getSlugByTitle($subpage);
+				$originSubpaeSlug = $this->latinizeUrlService->getSlugByTitle($subpage);
 				if (strpos($originSubpaeSlug, $originSlug) === 0) {
 					$newSubpageSlug = $slug . substr($originSubpaeSlug, $originSlugLen);
-					Utils::updateTitleSlugMap($subpage, null, $newSubpageSlug, [$newSubpageSlug], true);
+					$this->latinizeUrlService->updateTitleSlugMap($subpage, null, $newSubpageSlug, [$newSubpageSlug], true);
 				}
 			}
 		}

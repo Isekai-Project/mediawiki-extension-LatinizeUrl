@@ -21,6 +21,11 @@ use MediaWiki\Installer\DatabaseUpdater;
 use LatinizeUrl\Maintenance\MigrateOldUrlSlugTable;
 
 class Hooks {
+    private const NO_REDIRECT_PARAMS = [
+        'veaction', 'venotify', 'safemode', 'uselang', 'useskin',
+        'oldid', 'diff', 'curid', 'redirect', 'printable', 'debug'
+    ];
+
     public static $allowedNS = [NS_MAIN, NS_TALK];
 
     public static function onLoadExtensionSchemaUpdates(DatabaseUpdater $updater) {
@@ -56,6 +61,7 @@ class Hooks {
      */
     public static function onInitializeParseTitle(Title &$title, $request) {
         $service = MediaWikiServices::getInstance();
+        $latinizeUrlService = $service->getService('LatinizeUrl.LatinizeUrlService');
 
         $config = $service->getMainConfig();
         $wgLatinizeUrlForceRedirect = $config->get('LatinizeUrlForceRedirect');
@@ -63,10 +69,17 @@ class Hooks {
         $slugText = $title->getText();
 
         if ($title->isLocal() && in_array($title->getNamespace(), self::$allowedNS)) {
-            $realTitle = Utils::getTitleBySlugUrl($slugText, $title->getNamespace());
+            $realTitle = $latinizeUrlService->getTitleBySlugUrl($slugText, $title->getNamespace());
             if ($realTitle) {
                 $title = $realTitle;
                 $request->setVal('title', $title->getPrefixedDBkey());
+            }
+        }
+
+        // Resolve incoming slugs above even when this request must not redirect.
+        foreach (self::NO_REDIRECT_PARAMS as $parameter) {
+            if ($request->getCheck($parameter)) {
+                return;
             }
         }
 
@@ -80,7 +93,7 @@ class Hooks {
 			&& count( $request->getValueNames(['action', 'title'])) == 0
         ) { //把原标题页面重定向到拼音页面
             /** @var string 标准的Slug */
-            $canonicalSlug = Utils::getSlugUrlByTitle($title);
+            $canonicalSlug = $latinizeUrlService->getSlugUrlByTitle($title);
 
             $slugText = str_replace('_', ' ', $slugText);
             $canonicalSlug = str_replace('_', ' ', $canonicalSlug);
@@ -110,8 +123,11 @@ class Hooks {
                 return;
             }
 
-            if (in_array($title->getNamespace(), self::$allowedNS) && Utils::titleSlugExists($title)) {
-                $slugText = Utils::getSlugUrlByTitle($title);
+            $service = MediaWikiServices::getInstance();
+            $latinizeUrlService = $service->getService('LatinizeUrl.LatinizeUrlService');
+
+            if (in_array($title->getNamespace(), self::$allowedNS) && $latinizeUrlService->titleSlugExists($title)) {
+                $slugText = $latinizeUrlService->getSlugUrlByTitle($title);
                 if (!$slugText) return;
 
                 $slugTitle = Title::newFromText($slugText, $title->getNamespace());
@@ -132,7 +148,8 @@ class Hooks {
     public static function onPageDeleteComplete(ProperPageIdentity $page, Authority $deleter, $reason, $pageID, $deletedRev, $logEntry, $archivedRevisionCount) {
         $title = TitleValue::newFromPage($page);
         if (in_array($title->getNamespace(), self::$allowedNS)) { //不是普通页面就跳过
-            Utils::removeTitleSlugMap($title);
+            $latinizeUrlService = MediaWikiServices::getInstance()->getService('LatinizeUrl.LatinizeUrlService');
+            $latinizeUrlService->removeTitleSlugMap($title);
         }
     }
 
@@ -154,10 +171,22 @@ class Hooks {
         if ($flags & EDIT_NEW) {
             $title = $wikiPage->getTitle();
 
-            $parsedData = Utils::parseTitleToLatinize($title, $title->getPageLanguage());
-
-            if ($parsedData) {
-                Utils::addTitleSlugMap($title, null, $parsedData['url_slug'], $parsedData['latinize'], false);
+            $latinizeUrlService = MediaWikiServices::getInstance()->getService('LatinizeUrl.LatinizeUrlService');
+            $reason = 'conversion or mapping returned false';
+            try {
+                if ($latinizeUrlService->ensureAutomaticSlug($title)) {
+                    return;
+                }
+            } catch (\Throwable $e) {
+                $reason = get_class($e) . ': ' . $e->getMessage();
+            }
+            wfDebugLog('LatinizeUrl', 'Initial automatic slug failed: pageId=' . $title->getId() .
+                ' title=' . $title->getPrefixedDBkey() . ' error=' . $reason);
+            try {
+                Jobs\RetryJob::schedule($title->getId(), 1, max(0, (int)MediaWikiServices::getInstance()
+                    ->getMainConfig()->get('LatinizeUrlMaxRetries')));
+            } catch (\Throwable $e) {
+                // Immediate enqueue errors have already been logged by schedule().
             }
         }
     }
@@ -169,12 +198,16 @@ class Hooks {
         if (!in_array($new->getNamespace(), self::$allowedNS)) { //不是普通页面就跳过
             return;
         }
-        $title = MediaWikiServices::getInstance()->getTitleFactory()->newFromLinkTarget($new);
 
-        $parsedData = Utils::parseTitleToLatinize($title, $title->getPageLanguage());
+        $service = MediaWikiServices::getInstance();
+        $latinizeUrlService = $service->getService('LatinizeUrl.LatinizeUrlService');
+
+        $title = $service->getTitleFactory()->newFromLinkTarget($new);
+
+        $parsedData = $latinizeUrlService->parseTitleToLatinize($title, $title->getPageLanguage());
 
         if ($parsedData) {
-            Utils::addTitleSlugMap($title, null, $parsedData['url_slug'], $parsedData['latinize'], false);
+            $latinizeUrlService->addTitleSlugMap($title, null, $parsedData['url_slug'], $parsedData['latinize'], false);
         }
     }
 
@@ -188,7 +221,8 @@ class Hooks {
             $titles = explode('|', $titles);
             foreach ($titles as $id => $title) {
                 $title = Title::newFromText($title);
-                $realTitle = Utils::getTitleBySlugUrl($title, $title->getNamespace());
+                $latinizeUrlService = MediaWikiServices::getInstance()->getService('LatinizeUrl.LatinizeUrlService');
+                $realTitle = $latinizeUrlService->getTitleBySlugUrl($title, $title->getNamespace());
                 if ($realTitle) {
                     $titles[$id] = $realTitle->getPrefixedText();
                 }
@@ -229,7 +263,8 @@ class Hooks {
      */
     public static function onCollationFactory($collationName, &$collationObject) {
         if ($collationName == 'latinize') {
-            $collationObject = new LatinizeCollation();
+            $latinizeUrlService = MediaWikiServices::getInstance()->getService('LatinizeUrl.LatinizeUrlService');
+            $collationObject = $latinizeUrlService->newCollation();
         }
         return true;
     }

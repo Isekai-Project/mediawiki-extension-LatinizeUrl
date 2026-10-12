@@ -1,4 +1,5 @@
 # LatinizeUrl
+
 ## 安装
 将文件放入extensions/LatinizeUrl
 添加
@@ -52,3 +53,14 @@ https://www.isekai.cn/api/toolkit/asciiurl/hanzi2pinyin
 $wgCategoryCollation = 'latinize';
 ```
 いい夢見てね
+
+
+## 服务接口（MediaWiki 1.43+）
+```php
+$latinize = MediaWiki\MediaWikiServices::getInstance()
+    ->getService('LatinizeUrl.LatinizeUrlService');
+$slug = $latinize->getSlugByTitle($title);
+$slugUrl = $latinize->getSlugUrlByTitle($title);
+$resolvedTitle = $latinize->getTitleBySlugUrl('123-example');
+$latinize->replaceTitleSlugMap($title, null, 'example', ['example'], true);
+```
